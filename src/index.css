@@ -40,6 +40,13 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --color-cream: #ece6de;
+  --color-charcoal: #302f2d;
+  --color-amber: #febd22;
+  --color-coral: #f2718e;
+  --color-soft-coral: #f7c4c9;
+  --color-sky: #27cde7;
+  --color-stone: #9e9b96;
 }
 
 :root {
@@ -118,4 +125,28 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #302f2d rgba(0, 0, 0, 0.1);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #f59e0b;
+  border-radius: 3px;
+  transition: all 0.3s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #d97706;
 }
