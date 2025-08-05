@@ -1,12 +1,11 @@
 import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
-import { UploadedFile, ReviewResult, ReviewType } from "@/types";
+import { UploadedFile, ReviewResult, ReviewType, HistoryItem, SupportedLanguage } from "@/types";
 import { openaiService } from "@/services/openaiService";
 
 interface CodeReviewResultsProps {
   uploadedFiles: UploadedFile[];
   reviewType?: ReviewType;
   onAnalysisStateChange?: (isAnalyzing: boolean) => void;
-  // New props from the AI review hook
   result?: ReviewResult | null;
   error?: string;
   isAnalyzing?: boolean;
@@ -39,6 +38,69 @@ export const CodeReviewResults = forwardRef<CodeReviewResultsRef, CodeReviewResu
     const reviewResults = result || localReviewResults;
     const error = externalError || localError;
 
+  // Function to save review results to history
+  const saveToHistory = (result: ReviewResult, files: UploadedFile[]) => {
+    try {
+      const existingHistory = localStorage.getItem('codeRoaster_history');
+      const historyItems: HistoryItem[] = existingHistory ? JSON.parse(existingHistory) : [];
+      
+      // Function to map file extension to supported language
+      const mapExtensionToLanguage = (extension: string): SupportedLanguage => {
+        const ext = extension.replace('.', '').toLowerCase();
+        const extensionMap: Record<string, SupportedLanguage> = {
+          'js': 'javascript',
+          'jsx': 'javascript',
+          'ts': 'typescript',
+          'tsx': 'typescript',
+          'py': 'python',
+          'java': 'java',
+          'cpp': 'cpp',
+          'cc': 'cpp',
+          'cxx': 'cpp',
+          'c': 'c',
+          'go': 'go',
+          'rs': 'rust',
+          'php': 'php',
+          'rb': 'ruby',
+          'swift': 'swift',
+          'kt': 'kotlin',
+          'scala': 'scala',
+          'html': 'html',
+          'css': 'css',
+          'json': 'json',
+          'yml': 'yaml',
+          'yaml': 'yaml',
+          'sql': 'sql'
+        };
+        
+        return extensionMap[ext] || 'javascript';
+      };
+      
+      // Create history items for each file
+      files.forEach((file) => {
+        const historyItem: HistoryItem = {
+          id: `hist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          filename: file.name,
+          language: mapExtensionToLanguage(file.extension || ''),
+          reviewResult: result,
+          timestamp: new Date().toISOString(),
+          fileSize: file.size,
+          reviewType: reviewType
+        };
+        
+        historyItems.unshift(historyItem); // Add to beginning of array
+      });
+      
+      // Keep only the last 100 items to prevent storage overflow
+      const trimmedHistory = historyItems.slice(0, 100);
+      localStorage.setItem('codeRoaster_history', JSON.stringify(trimmedHistory));
+      
+      console.log('✅ Review results saved to history');
+    } catch (error) {
+      console.error('❌ Failed to save to history:', error);
+    }
+  };
+
   const analyzeCode = async () => {
     // Only use local state management if external state is not provided
     if (!result && !externalError && !externalIsAnalyzing) {
@@ -63,6 +125,9 @@ export const CodeReviewResults = forwardRef<CodeReviewResultsRef, CodeReviewResu
 
         const result = await openaiService.reviewCode(codeToAnalyze, language, reviewType);
         setLocalReviewResults(result);
+        
+        // Save successful results to history
+        saveToHistory(result, uploadedFiles);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
         const sarcasticErrors = [

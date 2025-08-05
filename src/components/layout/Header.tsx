@@ -26,12 +26,12 @@ export const Header = () => {
             <span>Code Reviewer</span>
           </Button>
         </Link>
-        <Link to="/bookmarks">
+        {/* <Link to="/bookmarks">
           <Button className="bg-amber hover:bg-amber/70 text-charcoal font-medium py-1.5 px-3 rounded-md border-2 border-charcoal transition-all duration-200 shadow-[3px_3px_0px_0px_#27292b] hover:shadow-[1px_1px_0px_0px_#27292b] hover:translate-x-[2px] hover:translate-y-[2px] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] text-sm">
             <img src="icons/bookmark.svg" alt="" className="w-6 h-6" />
             <span>Bookmark</span>
           </Button>
-        </Link>
+        </Link> */}
         <Link to="/history">
           <Button className="bg-coral hover:bg-coral/70 text-charcoal font-medium py-1.5 px-3 rounded-md border-2 border-charcoal transition-all duration-200 shadow-[3px_3px_0px_0px_#27292b] hover:shadow-[1px_1px_0px_0px_#27292b] hover:translate-x-[2px] hover:translate-y-[2px] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] text-sm">
             <img src="icons/history.svg" alt="" className="w-6 h-6" />
