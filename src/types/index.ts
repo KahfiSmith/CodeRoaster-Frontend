@@ -48,7 +48,6 @@ export interface BookmarkStats {
   recentlyAdded: BookmarkItem[];
 }
 
-// Props interfaces
 export interface BookmarkCardProps {
   bookmark: BookmarkItem;
   onClick: () => void;
@@ -88,7 +87,6 @@ export interface SearchBarProps {
   };
 }
 
-// Utility types
 export type BookmarkSortField = 'title' | 'dateAdded' | 'usageCount' | 'category' | 'language';
 export type SortDirection = 'asc' | 'desc';
 
@@ -97,7 +95,6 @@ export interface BookmarkSort {
   direction: SortDirection;
 }
 
-// Constants
 export const BOOKMARK_CATEGORIES: Record<BookmarkCategory, { name: string; color: string; description: string }> = {
   'best-practices': {
     name: 'Best Practices',
@@ -151,8 +148,8 @@ export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
 
 export interface ReviewSuggestion {
   id: string;
-  type: 'bug' | 'performance' | 'style' | 'security' | 'docs' | 'info';
-  severity: 'high' | 'medium' | 'low';
+  type: 'bug' | 'performance' | 'style' | 'security' | 'docs' | 'info' | 'architecture' | 'testing' | 'comedy' | 'disaster' | 'catastrophe' | 'nightmare' | 'unacceptable' | 'critical' | 'opportunity' | 'improvement' | 'enhancement' | 'learning' | 'growth';
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'opportunity' | 'enhancement' | 'suggestion';
   line: number;
   title: string;
   description: string;
@@ -162,6 +159,21 @@ export interface ReviewSuggestion {
     improved: string;
   };
   canAutoFix: boolean;
+  impact?: string;
+  priority?: string;
+  riskLevel?: string;
+  attackVector?: string;
+  mitigationStrategy?: string;
+  benefits?: string;
+  industryStandard?: string;
+  difficulty?: string;
+  roastLevel?: string;
+  analogiKocak?: string;
+  consequencesIfIgnored?: string;
+  urgencyLevel?: string;
+  learningOpportunity?: string;
+  confidenceBooster?: string;
+  nextSteps?: string;
 }
 
 export interface ReviewSummary {
@@ -178,6 +190,32 @@ export interface ReviewMetadata {
   timestamp: string;
   tokensUsed: number;
   fallback?: boolean;
+  error?: string;
+  overallAssessment?: string;
+  overallSecurityAssessment?: string;
+  overallRoast?: string;
+  brutalAssessment?: string;
+  positiveAssessment?: string;
+  codeMetrics?: {
+    complexity?: string;
+    maintainability?: string;
+    testability?: string;
+  };
+  recommendations?: string[];
+  securityChecklist?: string[];
+  designPatterns?: string[];
+  qualityMetrics?: {
+    codeOrganization?: string;
+    namingConventions?: string;
+    documentationLevel?: string;
+    testability?: string;
+  };
+  comedyGold?: string[];
+  motivasiSarkastik?: string;
+  realityCheck?: string[];
+  harshTruth?: string;
+  encouragements?: string[];
+  growthMindset?: string;
 }
 
 export interface ReviewResult {
@@ -206,7 +244,7 @@ export interface UsageStats {
   error?: string;
 }
 
-export type ReviewType = 'codeQuality' | 'security' | 'bestPractices';
+export type ReviewType = 'codeQuality' | 'security' | 'bestPractices' | 'sarcastic' | 'brutal' | 'encouraging';
 
 export interface ReviewPrompt {
   system: string;
@@ -217,5 +255,68 @@ export interface ReviewPrompts {
   codeQuality: ReviewPrompt;
   security: ReviewPrompt;
   bestPractices: ReviewPrompt;
+  sarcastic: ReviewPrompt;
+  brutal: ReviewPrompt;
+  encouraging: ReviewPrompt;
   [key: string]: ReviewPrompt;
+}
+
+export interface HistoryItem {
+  id: string;
+  filename: string;
+  language: SupportedLanguage;
+  reviewResult: ReviewResult;
+  timestamp: string;
+  fileSize: number;
+  reviewType: ReviewType;
+}
+
+export interface HistoryFilter {
+  searchTerm: string;
+  language: string;
+  reviewType: string;
+  severity: string;
+  dateRange: string;
+}
+
+export interface HistoryCardProps {
+  item: HistoryItem;
+  onClick: () => void;
+  onDelete: (id: string) => void;
+}
+
+export interface HistoryDetailModalProps {
+  item: HistoryItem;
+  onClose: () => void;
+}
+
+export interface BookmarkItem {
+  id: number;
+  title: string;
+  category: BookmarkCategory;
+  language: string;
+  description: string;
+  codeExample: {
+    wrong: string;
+    correct: string;
+  };
+  tags: string[];
+  dateAdded: string;
+  usageCount: number;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  count: number;
+}
+
+export interface BookmarkCardProps {
+  bookmark: BookmarkItem;
+  onClick: () => void;
+}
+
+export interface BookmarkDetailModalProps {
+  bookmark: BookmarkItem;
+  onClose: () => void;
 }
