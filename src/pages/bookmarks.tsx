@@ -10,40 +10,8 @@ import {
   Zap,
 } from "lucide-react";
 import { Header } from "@/components/layout";
+import { BookmarkCardProps, BookmarkDetailModalProps, BookmarkItem, Category } from "@/types";
 
-// Types
-interface BookmarkItem {
-  id: number;
-  title: string;
-  category: "best-practices" | "security" | "performance" | "bugs";
-  language: string;
-  description: string;
-  codeExample: {
-    wrong: string;
-    correct: string;
-  };
-  tags: string[];
-  dateAdded: string;
-  usageCount: number;
-}
-
-interface Category {
-  id: string;
-  name: string;
-  count: number;
-}
-
-interface BookmarkCardProps {
-  bookmark: BookmarkItem;
-  onClick: () => void;
-}
-
-interface BookmarkDetailModalProps {
-  bookmark: BookmarkItem;
-  onClose: () => void;
-}
-
-// Sample bookmark data
 const sampleBookmarks: BookmarkItem[] = [
   {
     id: 1,
@@ -132,6 +100,7 @@ const categoryIcons: Record<BookmarkItem["category"], React.ReactNode> = {
   security: <Shield className="w-4 h-4" />,
   performance: <Zap className="w-4 h-4" />,
   bugs: <Code className="w-4 h-4" />,
+  documentation: <Bookmark className="w-4 h-4" />,
 };
 
 const categoryColors: Record<BookmarkItem["category"], string> = {
@@ -139,6 +108,7 @@ const categoryColors: Record<BookmarkItem["category"], string> = {
   security: "bg-coral",
   performance: "bg-sky",
   bugs: "bg-soft-coral",
+  documentation: "bg-cream",
 };
 
 export const Bookmarks: React.FC = () => {
@@ -170,6 +140,11 @@ export const Bookmarks: React.FC = () => {
       id: "bugs",
       name: "Bug Fixes",
       count: bookmarks.filter((b) => b.category === "bugs").length,
+    },
+    {
+      id: "documentation",
+      name: "Documentation",
+      count: bookmarks.filter((b) => b.category === "documentation").length,
     },
   ];
 
@@ -212,9 +187,9 @@ export const Bookmarks: React.FC = () => {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      {category.id !== "all" && category.id in categoryIcons && (
-                        categoryIcons[category.id as BookmarkItem["category"]]
-                      )}
+                      {category.id !== "all" &&
+                        category.id in categoryIcons &&
+                        categoryIcons[category.id as BookmarkItem["category"]]}
                       <span className="text-sm">{category.name}</span>
                     </div>
                     <span className="text-xs bg-charcoal text-cream px-2 py-1 rounded-full">

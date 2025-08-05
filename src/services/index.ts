@@ -1,0 +1,1 @@
+export { openaiService } from '@/services/openaiService';
