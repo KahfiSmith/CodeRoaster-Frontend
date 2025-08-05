@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import NotFound from "@/pages/not-found";
 import { Bookmarks } from "@/pages/bookmarks";
 import CodeReviewer from "@/pages";
+import History from "./pages/history";
 
 function App() {
   return (
@@ -10,6 +11,7 @@ function App() {
         {/* Index */}
         <Route path="/" element={<CodeReviewer />} />
         <Route path="/bookmarks" element={<Bookmarks />} />
+        <Route path="/history" element={<History />} />
 
         {/* Error Page */}
         <Route path="*" element={<NotFound />} />

@@ -6,9 +6,11 @@ import { formatFileSize } from "@/lib/helpers";
 type FileUploaderProps = {
   uploadedFiles: UploadedFile[];
   setUploadedFiles: React.Dispatch<React.SetStateAction<UploadedFile[]>>;
+  onSubmit?: () => void;
+  isAnalyzing?: boolean;
 };
 
-export const FileUploader = ({ uploadedFiles, setUploadedFiles }: FileUploaderProps) => {
+export const FileUploader = ({ uploadedFiles, setUploadedFiles, onSubmit, isAnalyzing = false }: FileUploaderProps) => {
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
   const getFileExtension = (filename: string): string => {
@@ -172,7 +174,7 @@ export const FileUploader = ({ uploadedFiles, setUploadedFiles }: FileUploaderPr
                         {formatFileSize(file.size)}
                       </span>
                       <button 
-                        className="opacity-0 group-hover:opacity-100 text-coral hover:text-coral/70 transition-all text-xs"
+                        className="opacity-0 group-hover:opacity-100 text-charcoal hover:text-charcoal transition-all text-xs"
                         onClick={() => removeFile(file.id)}
                       >
                         ✕
@@ -188,6 +190,33 @@ export const FileUploader = ({ uploadedFiles, setUploadedFiles }: FileUploaderPr
             )}
           </div>
         </div>
+
+        {/* Submit Button */}
+        {uploadedFiles.length > 0 && (
+          <div className="mt-6">
+            <button
+              onClick={onSubmit}
+              disabled={isAnalyzing}
+              className={`w-full py-3 px-6 rounded-lg font-bold text-lg transition-all duration-200 ${
+                isAnalyzing
+                  ? 'bg-charcoal/50 text-amber/50 cursor-not-allowed'
+                  : 'bg-charcoal text-amber hover:bg-charcoal/90 shadow-[0px_4px_0px_0px_#1a1c1e] hover:shadow-[0px_2px_0px_0px_#1a1c1e] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px]'
+              } border-2 border-charcoal`}
+            >
+              {isAnalyzing ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-amber/50 border-t-amber rounded-full animate-spin"></div>
+                  <span>Analyzing Code...</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-2">
+                  <span>🚀</span>
+                  <span>Start Code Review</span>
+                </div>
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
