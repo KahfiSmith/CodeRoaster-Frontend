@@ -3,7 +3,7 @@ export const ENV = {
   // OpenAI Settings
   OPENAI_API_KEY: import.meta.env.VITE_OPENAI_API_KEY,
   OPENAI_MODEL: import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o-mini',
-  OPENAI_MAX_TOKENS: parseInt(import.meta.env.VITE_OPENAI_MAX_TOKENS) || 2000,
+  OPENAI_MAX_TOKENS: parseInt(import.meta.env.VITE_OPENAI_MAX_TOKENS) || 4000,
   OPENAI_TEMPERATURE: parseFloat(import.meta.env.VITE_OPENAI_TEMPERATURE) || 0.1,
   
   // App Settings
@@ -28,8 +28,8 @@ export const validateEnvironment = () => {
     errors.push('❌ Invalid OpenAI API key format. Should start with "sk-"')
   }
   
-  if (ENV.OPENAI_MAX_TOKENS < 100 || ENV.OPENAI_MAX_TOKENS > 4000) {
-    errors.push('❌ OPENAI_MAX_TOKENS should be between 100-4000')
+  if (ENV.OPENAI_MAX_TOKENS < 100 || ENV.OPENAI_MAX_TOKENS > 8000) {
+    errors.push('❌ OPENAI_MAX_TOKENS should be between 100-8000 for detailed reviews')
   }
   
   if (ENV.OPENAI_TEMPERATURE < 0 || ENV.OPENAI_TEMPERATURE > 2) {

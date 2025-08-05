@@ -1,7 +1,6 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import NotFound from "@/pages/not-found";
-import { Bookmarks } from "@/pages/bookmarks";
 import CodeReviewer from "@/pages";
+import NotFound from "@/pages/not-found";
+import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import History from "./pages/history";
 
 function App() {
@@ -10,7 +9,6 @@ function App() {
       <Routes>
         {/* Index */}
         <Route path="/" element={<CodeReviewer />} />
-        <Route path="/bookmarks" element={<Bookmarks />} />
         <Route path="/history" element={<History />} />
 
         {/* Error Page */}
