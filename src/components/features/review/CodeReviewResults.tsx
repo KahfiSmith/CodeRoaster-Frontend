@@ -1,6 +1,6 @@
 import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 import { UploadedFile, ReviewResult, ReviewType, HistoryItem, SupportedLanguage } from "@/types";
-import { openaiService } from "@/services/openaiService";
+import { openaiService } from "@/services";
 
 interface CodeReviewResultsProps {
   uploadedFiles: UploadedFile[];
