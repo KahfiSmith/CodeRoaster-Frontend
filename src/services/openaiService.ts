@@ -7,6 +7,7 @@ const REVIEW_PROMPTS: ReviewPrompts = {
     system: `Kamu adalah senior code reviewer yang ahli. Analisis kode dan berikan review dalam format JSON yang valid.
 
 WAJIB: Respons hanya dalam format JSON yang valid, tidak ada teks lain.
+FOKUS: Berikan analisis yang berguna dan actionable, tidak perlu terlalu panjang.
 
 Format JSON yang HARUS diikuti:
 {
@@ -17,42 +18,42 @@ Format JSON yang HARUS diikuti:
     "warning": number,
     "info": number
   },
-  "overallAssessment": "Penilaian keseluruhan kode dalam 2-3 kalimat bahasa Indonesia",
+  "overallAssessment": "Penilaian keseluruhan kode dalam 2-3 kalimat bahasa Indonesia yang concise",
   "suggestions": [
     {
       "id": "saran-1",
-      "type": "bug|performance|style|security|docs",
+      "type": "bug|performance|style|security|docs|architecture|maintainability",
       "severity": "high|medium|low",
       "line": number,
-      "title": "Judul masalah dalam bahasa Indonesia",
-      "description": "Penjelasan detail masalah dan dampaknya dalam bahasa Indonesia (minimal 2 kalimat)",
-      "suggestion": "Solusi detail dan cara memperbaikinya dalam bahasa Indonesia (minimal 2 kalimat)",
+      "title": "Judul masalah yang SPESIFIK",
+      "description": "Penjelasan masalah dalam 1-2 kalimat",
+      "suggestion": "Solusi dalam 1-2 kalimat",
       "codeSnippet": {
-        "original": "kode yang bermasalah",
-        "improved": "kode yang sudah diperbaiki"
+        "original": "kode bermasalah",
+        "improved": "kode yang diperbaiki"
       },
       "canAutoFix": boolean
     }
   ],
   "recommendations": [
-    "Saran perbaikan 1",
-    "Saran perbaikan 2"
+    "Saran perbaikan concise 1",
+    "Saran perbaikan concise 2"
   ]
 }
 
-Berikan analisis yang mendalam dan berguna dalam bahasa Indonesia.`,
+Berikan analisis yang fokus dan berguna dalam bahasa Indonesia.`,
     
-    user: (code, language) => `Analisis kode ${language} berikut dan berikan review dalam format JSON yang valid:
+    user: (code, language) => `Analisis kode ${language} berikut dan berikan review concise dalam format JSON:
 
 \`\`\`${language}
 ${code}
 \`\`\`
 
-Berikan analisis komprehensif dengan saran yang actionable dalam bahasa Indonesia.`
+Berikan 3-5 suggestions yang paling penting dan actionable.`
   },
 
   sarcastic: {
-    system: `Kamu adalah code reviewer yang sarkastik tapi membantu dalam bahasa Indonesia. Kasih review yang entertaining dan kocak, tapi tetap berguna.
+    system: `Kamu adalah code reviewer sarkastik tapi membantu dalam bahasa Indonesia. Kasih review yang entertaining tapi concise.
 
 WAJIB: Respons hanya dalam format JSON yang valid, tidak ada teks lain.
 
@@ -65,36 +66,39 @@ Format JSON yang HARUS diikuti:
     "warning": number,
     "info": number
   },
-  "overallRoast": "Roasting kocak tentang kode ini dalam 2-3 kalimat bahasa Indonesia",
+  "overallRoast": "Roasting kocak tentang kode ini dalam 2-3 kalimat",
   "suggestions": [
     {
       "id": "roast-1",
       "type": "bug|performance|style|security|docs|comedy",
       "severity": "high|medium|low",
       "line": number,
-      "title": "Judul sarkastik untuk masalahnya",
-      "description": "Penjelasan masalah dengan gaya sarkastik Indonesia yang lucu tapi informatif (minimal 2 kalimat)",
-      "suggestion": "Solusi dengan gaya roasting yang tetap membantu (minimal 2 kalimat)",
+      "title": "Judul sarkastik",
+      "description": "Penjelasan sarkastik dalam 1-2 kalimat",
+      "suggestion": "Solusi dengan gaya roasting dalam 1-2 kalimat",
       "codeSnippet": {
-        "original": "kode yang bermasalah",
-        "improved": "kode yang udah diperbaiki"
+        "original": "kode bermasalah",
+        "improved": "kode yang diperbaiki"
       },
-      "analogiKocak": "Analogi lucu untuk menggambarkan masalahnya",
+      "analogiKocak": "Analogi lucu singkat",
       "canAutoFix": boolean
     }
   ],
-  "motivasiSarkastik": "Motivasi sarkastik tapi encouraging untuk programmer"
+  "comedyGold": [
+    "Quote kocak singkat 1",
+    "Quote kocak singkat 2"
+  ]
 }
 
-Berikan review yang entertaining tapi tetap berguna dalam bahasa Indonesia.`,
+Berikan review yang lucu tapi tetap berguna dalam bahasa Indonesia.`,
     
-    user: (code, language) => `Roasting kode ${language} berikut dengan gaya sarkastik Indonesia yang kocak tapi membantu:
+    user: (code, language) => `Roasting kode ${language} berikut dengan gaya sarkastik yang concise:
 
 \`\`\`${language}
 ${code}
 \`\`\`
 
-Kasih review yang lucu dan menghibur tapi tetap educational dalam format JSON yang valid!`
+Kasih 3-5 roasting yang kocak tapi berguna.`
   },
 
   brutal: {
@@ -111,25 +115,24 @@ Format JSON yang HARUS diikuti:
     "warning": number,
     "info": number
   },
-  "brutalAssessment": "Assessment jujur tentang kode dalam 2-3 kalimat bahasa Indonesia",
+  "brutalAssessment": "Assessment jujur tentang kode dalam 1-2 kalimat",
   "suggestions": [
     {
       "id": "brutal-1",
       "type": "disaster|catastrophe|critical|bug",
       "severity": "critical|high|medium",
       "line": number,
-      "title": "Judul tegas tentang masalahnya",
-      "description": "Penjelasan tegas kenapa ini masalah serius (minimal 2 kalimat)",
-      "suggestion": "Solusi yang harus diterapkan tanpa kompromi (minimal 2 kalimat)",
+      "title": "Judul tegas",
+      "description": "Penjelasan tegas dalam 1-2 kalimat",
+      "suggestion": "Solusi yang harus diterapkan dalam 1-2 kalimat",
       "codeSnippet": {
         "original": "kode bermasalah",
         "improved": "kode yang proper"
       },
-      "urgencyLevel": "Seberapa urgent harus diperbaiki",
       "canAutoFix": boolean
     }
   ],
-  "harshTruth": "Kebenaran yang harus didengar tentang kode ini"
+  "harshTruth": "Kebenaran yang harus didengar"
 }
 
 Berikan review yang tegas tapi konstruktif dalam bahasa Indonesia.`,
@@ -140,7 +143,7 @@ Berikan review yang tegas tapi konstruktif dalam bahasa Indonesia.`,
 ${code}
 \`\`\`
 
-Kasih feedback yang direct dan jujur dalam format JSON yang valid!`
+Kasih feedback yang direct dan to the point.`
   },
 
   encouraging: {
@@ -157,7 +160,7 @@ Format JSON yang HARUS diikuti:
     "warning": number,
     "info": number
   },
-  "positiveAssessment": "Assessment positif tentang kode dalam 2-3 kalimat bahasa Indonesia",
+  "positiveAssessment": "Assessment positif tentang kode dalam 1-2 kalimat",
   "suggestions": [
     {
       "id": "encourage-1",
@@ -165,28 +168,27 @@ Format JSON yang HARUS diikuti:
       "severity": "opportunity|suggestion|low",
       "line": number,
       "title": "Peluang perbaikan",
-      "description": "Penjelasan supportif tentang area perbaikan (minimal 2 kalimat)",
-      "suggestion": "Saran yang encouraging untuk perbaikan (minimal 2 kalimat)",
+      "description": "Penjelasan supportif dalam 1-2 kalimat",
+      "suggestion": "Saran encouraging dalam 1-2 kalimat",
       "codeSnippet": {
         "original": "kode sekarang",
         "improved": "kode yang lebih baik"
       },
-      "learningOpportunity": "Kesempatan belajar dari perbaikan ini",
       "canAutoFix": boolean
     }
   ],
-  "growthMindset": "Motivasi untuk terus berkembang sebagai programmer"
+  "growthMindset": "Motivasi untuk terus berkembang"
 }
 
-Berikan review yang supportive dan memotivasi dalam bahasa Indonesia.`,
+Berikan review yang supportive dalam bahasa Indonesia.`,
     
-    user: (code, language) => `Review kode ${language} berikut dengan pendekatan yang supportive:
+    user: (code, language) => `Review kode ${language} berikut dengan pendekatan supportive:
 
 \`\`\`${language}
 ${code}
 \`\`\`
 
-Kasih feedback yang encouraging dan membangun dalam format JSON yang valid!`
+Kasih feedback yang encouraging dan membangun.`
   },
 
   security: {
@@ -203,31 +205,30 @@ Format JSON yang HARUS diikuti:
     "warning": number,
     "info": number
   },
-  "overallSecurityAssessment": "Assessment keamanan kode dalam 2-3 kalimat bahasa Indonesia",
+  "overallSecurityAssessment": "Assessment keamanan dalam 1-2 kalimat",
   "suggestions": [
     {
       "id": "security-1",
       "type": "security",
       "severity": "critical|high|medium|low",
       "line": number,
-      "title": "Nama kerentanan keamanan",
-      "description": "Penjelasan detail kerentanan dan risikonya (minimal 2 kalimat)",
-      "suggestion": "Cara mengatasi kerentanan secara detail (minimal 2 kalimat)",
+      "title": "Nama kerentanan",
+      "description": "Penjelasan kerentanan dalam 1-2 kalimat",
+      "suggestion": "Cara mengatasi dalam 1-2 kalimat",
       "codeSnippet": {
         "original": "kode vulnerable",
         "improved": "kode yang secure"
       },
-      "attackVector": "Bagaimana kerentanan ini bisa dieksploitasi",
-      "riskLevel": "Tingkat risiko dan dampaknya",
       "canAutoFix": boolean
     }
   ],
   "securityChecklist": [
-    "Checklist keamanan yang perlu diperhatikan"
+    "Checklist keamanan 1",
+    "Checklist keamanan 2"
   ]
 }
 
-Fokus pada identifikasi dan solusi masalah keamanan dalam bahasa Indonesia.`,
+Fokus pada identifikasi masalah keamanan yang critical dalam bahasa Indonesia.`,
     
     user: (code, language) => `Analisis keamanan kode ${language} berikut:
 
@@ -235,7 +236,7 @@ Fokus pada identifikasi dan solusi masalah keamanan dalam bahasa Indonesia.`,
 ${code}
 \`\`\`
 
-Berikan analisis keamanan yang komprehensif dalam format JSON yang valid!`
+Berikan analisis keamanan yang focused dan actionable.`
   },
 
   bestPractices: {
@@ -252,7 +253,7 @@ Format JSON yang HARUS diikuti:
     "warning": number,
     "info": number
   },
-  "overallAssessment": "Assessment adherence terhadap best practices dalam 2-3 kalimat bahasa Indonesia",
+  "overallAssessment": "Assessment best practices dalam 1-2 kalimat",
   "suggestions": [
     {
       "id": "best-practice-1",
@@ -260,23 +261,21 @@ Format JSON yang HARUS diikuti:
       "severity": "high|medium|low",
       "line": number,
       "title": "Best practice yang perlu diterapkan",
-      "description": "Penjelasan kenapa best practice ini penting (minimal 2 kalimat)",
-      "suggestion": "Cara implementasi best practice (minimal 2 kalimat)",
+      "description": "Penjelasan dalam 1-2 kalimat",
+      "suggestion": "Cara implementasi dalam 1-2 kalimat",
       "codeSnippet": {
         "original": "kode sekarang",
         "improved": "kode dengan best practice"
       },
-      "industryStandard": "Standar industri yang relevan",
-      "benefits": "Manfaat menerapkan best practice ini",
       "canAutoFix": boolean
     }
   ],
   "designPatterns": [
-    "Design patterns yang bisa diterapkan"
+    "Pattern yang bisa diterapkan"
   ]
 }
 
-Fokus pada penerapan best practices dan coding standards dalam bahasa Indonesia.`,
+Fokus pada best practices yang paling impactful dalam bahasa Indonesia.`,
     
     user: (code, language) => `Review best practices kode ${language} berikut:
 
@@ -284,7 +283,7 @@ Fokus pada penerapan best practices dan coding standards dalam bahasa Indonesia.
 ${code}
 \`\`\`
 
-Berikan rekomendasi best practices dalam format JSON yang valid!`
+Berikan rekomendasi best practices yang concise dan actionable.`
   }
 };
 
@@ -345,21 +344,26 @@ class OpenAIService {
 
       console.log(`🔍 Starting ${reviewType} review for ${language} code...`)
 
-      // Add additional instruction for JSON enforcement
+      // Add additional instruction for JSON enforcement and concise responses
       const systemPrompt = `${prompt.system}
 
-CRITICAL: Your response MUST be a valid JSON object only. Do not include any text before or after the JSON. The response must start with { and end with }. No explanations, no additional text, ONLY valid JSON.`;
+CRITICAL INSTRUCTIONS:
+1. Your response MUST be a valid JSON object only. Do not include any text before or after the JSON. The response must start with { and end with }.
+2. Keep responses CONCISE and FOCUSED. Prioritize quality over quantity.
+3. Generate 3-5 most important suggestions maximum.
+4. Each suggestion should be clear and actionable, not overly verbose.
+5. No explanations outside JSON, ONLY valid JSON with focused content.`;
 
       const messages = [
         { role: 'system' as const, content: systemPrompt },
         { role: 'user' as const, content: prompt.user(code, language) }
       ];
 
-      // Create request object with type override
+      // Create request object with optimized settings for reliable responses
       const requestOptions = {
         model: OPENAI_CONFIG.model,
-        temperature: OPENAI_CONFIG.temperature,
-        max_tokens: OPENAI_CONFIG.max_tokens,
+        temperature: OPENAI_CONFIG.temperature, // Now 0.1 for consistent JSON format
+        max_tokens: OPENAI_CONFIG.max_tokens, // Now 2000 for optimal balance
         top_p: OPENAI_CONFIG.top_p,
         frequency_penalty: OPENAI_CONFIG.frequency_penalty,
         presence_penalty: OPENAI_CONFIG.presence_penalty,
@@ -386,7 +390,7 @@ CRITICAL: Your response MUST be a valid JSON object only. Do not include any tex
         
         // Validate required properties and provide defaults
         const validatedResult: ReviewResult = {
-          score: parsedResult.score || 5,
+          score: parsedResult.score || 50,
           summary: {
             totalIssues: parsedResult.summary?.totalIssues || 0,
             critical: parsedResult.summary?.critical || 0,
@@ -406,22 +410,10 @@ CRITICAL: Your response MUST be a valid JSON object only. Do not include any tex
               original: suggestion.codeSnippet?.original || '',
               improved: suggestion.codeSnippet?.improved || ''
             },
-            // Handle dynamic fields from different review types
-            impact: suggestion.impact || undefined,
-            priority: suggestion.priority || undefined,
-            riskLevel: suggestion.riskLevel || undefined,
-            attackVector: suggestion.attackVector || undefined,
-            mitigationStrategy: suggestion.mitigationStrategy || undefined,
-            benefits: suggestion.benefits || undefined,
-            industryStandard: suggestion.industryStandard || undefined,
-            difficulty: suggestion.difficulty || undefined,
-            roastLevel: suggestion.roastLevel || undefined,
+            // Only include essential dynamic fields
             analogiKocak: suggestion.analogiKocak || undefined,
-            consequencesIfIgnored: suggestion.consequencesIfIgnored || undefined,
             urgencyLevel: suggestion.urgencyLevel || undefined,
             learningOpportunity: suggestion.learningOpportunity || undefined,
-            confidenceBooster: suggestion.confidenceBooster || undefined,
-            nextSteps: suggestion.nextSteps || undefined,
             canAutoFix: suggestion.canAutoFix || false
           })) : [],
           metadata: {
@@ -430,22 +422,18 @@ CRITICAL: Your response MUST be a valid JSON object only. Do not include any tex
             model: OPENAI_CONFIG.model,
             timestamp: new Date().toISOString(),
             tokensUsed: response.usage?.total_tokens || 0,
-            // Store dynamic assessment fields
+            // Store only essential assessment fields
             overallAssessment: parsedResult.overallAssessment || undefined,
             overallSecurityAssessment: parsedResult.overallSecurityAssessment || undefined,
             overallRoast: parsedResult.overallRoast || undefined,
             brutalAssessment: parsedResult.brutalAssessment || undefined,
             positiveAssessment: parsedResult.positiveAssessment || undefined,
-            codeMetrics: parsedResult.codeMetrics || undefined,
             recommendations: parsedResult.recommendations || undefined,
             securityChecklist: parsedResult.securityChecklist || undefined,
             designPatterns: parsedResult.designPatterns || undefined,
-            qualityMetrics: parsedResult.qualityMetrics || undefined,
             comedyGold: parsedResult.comedyGold || undefined,
             motivasiSarkastik: parsedResult.motivasiSarkastik || undefined,
-            realityCheck: parsedResult.realityCheck || undefined,
             harshTruth: parsedResult.harshTruth || undefined,
-            encouragements: parsedResult.encouragements || undefined,
             growthMindset: parsedResult.growthMindset || undefined
           }
         }
@@ -469,40 +457,40 @@ CRITICAL: Your response MUST be a valid JSON object only. Do not include any tex
             severity: 'medium' as const,
             line: 1,
             title: 'AI Response Error',
-            description: 'AI memberikan respons tapi tidak dalam format yang diharapkan. Ini mungkin karena kode terlalu kompleks atau ada masalah koneksi.',
-            suggestion: 'Coba upload kode yang lebih kecil atau cek koneksi internet kamu.',
+            description: 'AI memberikan respons tapi tidak dalam format yang diharapkan.',
+            suggestion: 'Coba upload kode yang lebih kecil atau gunakan reviewer type yang berbeda.',
             codeSnippet: { original: '', improved: '' },
             canAutoFix: false
           });
         } else {
           // Extract some content as a general suggestion
-          const truncatedContent = content.substring(0, 200).replace(/[{}[\]"]/g, '');
+          const truncatedContent = content.substring(0, 150).replace(/[{}[\]"]/g, '');
           fallbackSuggestions.push({
             id: `fallback-${Date.now()}`,
             type: 'info' as const,
             severity: 'low' as const,
             line: 1,
             title: 'Review Tersedia (Format Tidak Standar)',
-            description: 'AI udah ngasih feedback tapi formatnya agak aneh. Ini mungkin hasil yang masih bisa dibaca:',
+            description: 'AI sudah memberikan feedback tapi formatnya tidak sesuai.',
             suggestion: truncatedContent || 'Coba upload ulang atau pilih reviewer personality yang berbeda.',
             codeSnippet: { original: '', improved: '' },
             canAutoFix: false
           });
         }
 
-        // Fallback response with Indonesian sarcastic messages
+        // Fallback response with concise Indonesian messages
         const sarcasticFallbacks = [
-          "Wah, AI-nya lagi bingung nih kayaknya 🤖",
-          "Plot twist: AI ga bisa parsing response sendiri 🎭", 
-          "Houston, we have a parsing problem 🚀",
-          "AI lagi error, mungkin kode lu terlalu complicated 😅"
+          "AI-nya lagi confused kayaknya 🤖",
+          "Response format error, coba lagi deh �", 
+          "Parsing issue, mungkin kode terlalu kompleks 📝",
+          "AI butuh coffee break ☕"
         ];
         
         const randomMessage = sarcasticFallbacks[Math.floor(Math.random() * sarcasticFallbacks.length)];
         
         return {
-          score: 3,
-          summary: { totalIssues: 1, critical: 0, warning: 1, info: 0 },
+          score: 5,
+          summary: { totalIssues: 1, critical: 0, warning: 0, info: 1 },
           suggestions: fallbackSuggestions,
           metadata: {
             reviewType,
