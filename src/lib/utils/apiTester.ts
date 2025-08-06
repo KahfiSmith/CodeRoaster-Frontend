@@ -1,4 +1,4 @@
-import { openaiService } from '@/services/openaiService'
+import { openaiService } from '@/services'
 
 // Test samples for different languages
 const TEST_SAMPLES = {
