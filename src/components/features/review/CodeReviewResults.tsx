@@ -327,7 +327,7 @@ function checkBestPractices() {
               <div className="bg-charcoal p-3 rounded-lg">
                 <div className="flex items-center justify-between text-sky">
                   <span className="font-bold">Code Quality Score</span>
-                  <span className="text-2xl font-bold">{reviewResults.score}/10</span>
+                  <span className="text-2xl font-bold">{Math.round((reviewResults.score / 100) * 10)}/10</span>
                 </div>
                 <div className="text-xs text-sky/70 mt-1">
                   {reviewResults.summary.totalIssues} issues found ({reviewResults.summary.critical} critical)
