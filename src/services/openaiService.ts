@@ -1,5 +1,12 @@
-import { openai, OPENAI_CONFIG, testOpenAIConnection } from '@/config/openai'
-import { ConnectionResult, ConnectionStatus, ReviewPrompts, ReviewResult, ReviewType, UsageStats } from '@/types';
+import { openai, OPENAI_CONFIG, testOpenAIConnection } from "@/config/openai";
+import {
+  ConnectionResult,
+  ConnectionStatus,
+  ReviewPrompts,
+  ReviewResult,
+  ReviewType,
+  UsageStats,
+} from "@/types";
 
 // Review prompts for different types of analysis
 const REVIEW_PROMPTS: ReviewPrompts = {
@@ -42,14 +49,17 @@ Format JSON yang HARUS diikuti:
 }
 
 Berikan analisis yang fokus dan berguna dalam bahasa Indonesia.`,
-    
-    user: (code, language) => `Analisis kode ${language} berikut dan berikan review concise dalam format JSON:
+
+    user: (
+      code,
+      language
+    ) => `Analisis kode ${language} berikut dan berikan review concise dalam format JSON:
 
 \`\`\`${language}
 ${code}
 \`\`\`
 
-Berikan 3-5 suggestions yang paling penting dan actionable.`
+Berikan 3-5 suggestions yang paling penting dan actionable.`,
   },
 
   sarcastic: {
@@ -91,14 +101,17 @@ Format JSON yang HARUS diikuti:
 }
 
 Berikan review yang lucu tapi tetap berguna dalam bahasa Indonesia.`,
-    
-    user: (code, language) => `Roasting kode ${language} berikut dengan gaya sarkastik yang concise:
+
+    user: (
+      code,
+      language
+    ) => `Roasting kode ${language} berikut dengan gaya sarkastik yang concise:
 
 \`\`\`${language}
 ${code}
 \`\`\`
 
-Kasih 3-5 roasting yang kocak tapi berguna.`
+Kasih 3-5 roasting yang kocak tapi berguna.`,
   },
 
   brutal: {
@@ -136,14 +149,17 @@ Format JSON yang HARUS diikuti:
 }
 
 Berikan review yang tegas tapi konstruktif dalam bahasa Indonesia.`,
-    
-    user: (code, language) => `Review kode ${language} berikut dengan tegas dan jujur:
+
+    user: (
+      code,
+      language
+    ) => `Review kode ${language} berikut dengan tegas dan jujur:
 
 \`\`\`${language}
 ${code}
 \`\`\`
 
-Kasih feedback yang direct dan to the point.`
+Kasih feedback yang direct dan to the point.`,
   },
 
   encouraging: {
@@ -181,14 +197,17 @@ Format JSON yang HARUS diikuti:
 }
 
 Berikan review yang supportive dalam bahasa Indonesia.`,
-    
-    user: (code, language) => `Review kode ${language} berikut dengan pendekatan supportive:
+
+    user: (
+      code,
+      language
+    ) => `Review kode ${language} berikut dengan pendekatan supportive:
 
 \`\`\`${language}
 ${code}
 \`\`\`
 
-Kasih feedback yang encouraging dan membangun.`
+Kasih feedback yang encouraging dan membangun.`,
   },
 
   security: {
@@ -229,14 +248,14 @@ Format JSON yang HARUS diikuti:
 }
 
 Fokus pada identifikasi masalah keamanan yang critical dalam bahasa Indonesia.`,
-    
+
     user: (code, language) => `Analisis keamanan kode ${language} berikut:
 
 \`\`\`${language}
 ${code}
 \`\`\`
 
-Berikan analisis keamanan yang focused dan actionable.`
+Berikan analisis keamanan yang focused dan actionable.`,
   },
 
   bestPractices: {
@@ -276,15 +295,15 @@ Format JSON yang HARUS diikuti:
 }
 
 Fokus pada best practices yang paling impactful dalam bahasa Indonesia.`,
-    
+
     user: (code, language) => `Review best practices kode ${language} berikut:
 
 \`\`\`${language}
 ${code}
 \`\`\`
 
-Berikan rekomendasi best practices yang concise dan actionable.`
-  }
+Berikan rekomendasi best practices yang concise dan actionable.`,
+  },
 };
 
 class OpenAIService {
@@ -299,50 +318,58 @@ class OpenAIService {
   }
 
   async init(): Promise<void> {
-    console.log('🔄 Initializing OpenAI service...')
-    this.connectionPromise = this.checkConnection()
-    await this.connectionPromise
+    console.log("🔄 Initializing OpenAI service...");
+    this.connectionPromise = this.checkConnection();
+    await this.connectionPromise;
   }
 
   async checkConnection(): Promise<ConnectionResult> {
     try {
-      const result = await testOpenAIConnection()
-      this.isConnected = result.success
-      
+      const result = await testOpenAIConnection();
+      this.isConnected = result.success;
+
       if (result.success) {
-        console.log('✅ OpenAI API connected successfully')
-        console.log('📋 Available models:', result.availableModels?.slice(0, 5))
+        console.log("✅ OpenAI API connected successfully");
+        console.log(
+          "📋 Available models:",
+          result.availableModels?.slice(0, 5)
+        );
       } else {
-        console.error('❌ OpenAI connection failed:', result.message)
+        console.error("❌ OpenAI connection failed:", result.message);
       }
-      
-      return result 
+
+      return result;
     } catch (error: unknown) {
-      this.isConnected = false
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      console.error('❌ Error koneksi OpenAI:', errorMessage)
-      return { success: false, message: errorMessage, error }
+      this.isConnected = false;
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error("❌ Error koneksi OpenAI:", errorMessage);
+      return { success: false, message: errorMessage, error };
     }
   }
 
-  async reviewCode(code: string, language: string, reviewType: ReviewType = 'codeQuality'): Promise<ReviewResult> {
+  async reviewCode(
+    code: string,
+    language: string,
+    reviewType: ReviewType = "codeQuality"
+  ): Promise<ReviewResult> {
     if (!this.connectionPromise) {
-      await this.init()
+      await this.init();
     } else {
-      await this.connectionPromise
+      await this.connectionPromise;
     }
 
     if (!this.isConnected) {
-      throw new Error('OpenAI API tidak terhubung. Silakan cek API key Anda.')
+      throw new Error("OpenAI API tidak terhubung. Silakan cek API key Anda.");
     }
 
     try {
-      const prompt = REVIEW_PROMPTS[reviewType]
+      const prompt = REVIEW_PROMPTS[reviewType];
       if (!prompt) {
-        throw new Error(`Tipe review tidak valid: ${reviewType}`)
+        throw new Error(`Tipe review tidak valid: ${reviewType}`);
       }
 
-      console.log(`🔍 Starting ${reviewType} review for ${language} code...`)
+      console.log(`🔍 Starting ${reviewType} review for ${language} code...`);
 
       // Add additional instruction for JSON enforcement and concise responses
       const systemPrompt = `${prompt.system}
@@ -355,8 +382,8 @@ CRITICAL INSTRUCTIONS:
 5. No explanations outside JSON, ONLY valid JSON with focused content.`;
 
       const messages = [
-        { role: 'system' as const, content: systemPrompt },
-        { role: 'user' as const, content: prompt.user(code, language) }
+        { role: "system" as const, content: systemPrompt },
+        { role: "user" as const, content: prompt.user(code, language) },
       ];
 
       // Create request object with optimized settings for reliable responses
@@ -368,26 +395,26 @@ CRITICAL INSTRUCTIONS:
         frequency_penalty: OPENAI_CONFIG.frequency_penalty,
         presence_penalty: OPENAI_CONFIG.presence_penalty,
         response_format: { type: "json_object" } as const,
-        messages
+        messages,
       };
 
       const response = await openai.chat.completions.create(requestOptions);
 
-      let content = response.choices[0]?.message?.content?.trim() || '{}'
-      
+      let content = response.choices[0]?.message?.content?.trim() || "{}";
+
       // Clean up the response to extract JSON if it's wrapped in other text
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         content = jsonMatch[0];
       }
-      
-      console.log('📄 AI Response length:', content.length, 'characters');
-      
+
+      console.log("📄 AI Response length:", content.length, "characters");
+
       // Parse JSON response
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const parsedResult = JSON.parse(content) as any // Use any to access dynamic properties from AI response
-        
+        const parsedResult = JSON.parse(content) as any; // Use any to access dynamic properties from AI response
+
         // Validate required properties and provide defaults
         const validatedResult: ReviewResult = {
           score: parsedResult.score || 50,
@@ -395,27 +422,34 @@ CRITICAL INSTRUCTIONS:
             totalIssues: parsedResult.summary?.totalIssues || 0,
             critical: parsedResult.summary?.critical || 0,
             warning: parsedResult.summary?.warning || 0,
-            info: parsedResult.summary?.info || 0
+            info: parsedResult.summary?.info || 0,
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          suggestions: Array.isArray(parsedResult.suggestions) ? parsedResult.suggestions.map((suggestion: any, index: number) => ({
-            id: suggestion.id || `suggestion-${index}`,
-            type: suggestion.type || 'info',
-            severity: suggestion.severity || 'low',
-            line: suggestion.line || 1,
-            title: suggestion.title || `Saran ${index + 1}`,
-            description: suggestion.description || 'Tidak ada deskripsi tersedia',
-            suggestion: suggestion.suggestion || 'Tidak ada saran spesifik',
-            codeSnippet: {
-              original: suggestion.codeSnippet?.original || '',
-              improved: suggestion.codeSnippet?.improved || ''
-            },
-            // Only include essential dynamic fields
-            analogiKocak: suggestion.analogiKocak || undefined,
-            urgencyLevel: suggestion.urgencyLevel || undefined,
-            learningOpportunity: suggestion.learningOpportunity || undefined,
-            canAutoFix: suggestion.canAutoFix || false
-          })) : [],
+          suggestions: Array.isArray(parsedResult.suggestions)
+            ? parsedResult.suggestions.map(
+                (suggestion: any, index: number) => ({
+                  id: suggestion.id || `suggestion-${index}`,
+                  type: suggestion.type || "info",
+                  severity: suggestion.severity || "low",
+                  line: suggestion.line || 1,
+                  title: suggestion.title || `Saran ${index + 1}`,
+                  description:
+                    suggestion.description || "Tidak ada deskripsi tersedia",
+                  suggestion:
+                    suggestion.suggestion || "Tidak ada saran spesifik",
+                  codeSnippet: {
+                    original: suggestion.codeSnippet?.original || "",
+                    improved: suggestion.codeSnippet?.improved || "",
+                  },
+                  // Only include essential dynamic fields
+                  analogiKocak: suggestion.analogiKocak || undefined,
+                  urgencyLevel: suggestion.urgencyLevel || undefined,
+                  learningOpportunity:
+                    suggestion.learningOpportunity || undefined,
+                  canAutoFix: suggestion.canAutoFix || false,
+                })
+              )
+            : [],
           metadata: {
             reviewType,
             language,
@@ -424,7 +458,8 @@ CRITICAL INSTRUCTIONS:
             tokensUsed: response.usage?.total_tokens || 0,
             // Store only essential assessment fields
             overallAssessment: parsedResult.overallAssessment || undefined,
-            overallSecurityAssessment: parsedResult.overallSecurityAssessment || undefined,
+            overallSecurityAssessment:
+              parsedResult.overallSecurityAssessment || undefined,
             overallRoast: parsedResult.overallRoast || undefined,
             brutalAssessment: parsedResult.brutalAssessment || undefined,
             positiveAssessment: parsedResult.positiveAssessment || undefined,
@@ -434,60 +469,74 @@ CRITICAL INSTRUCTIONS:
             comedyGold: parsedResult.comedyGold || undefined,
             motivasiSarkastik: parsedResult.motivasiSarkastik || undefined,
             harshTruth: parsedResult.harshTruth || undefined,
-            growthMindset: parsedResult.growthMindset || undefined
-          }
-        }
+            growthMindset: parsedResult.growthMindset || undefined,
+          },
+        };
 
-        console.log('✅ Code review completed successfully')
-        console.log(`📊 Found ${validatedResult.summary.totalIssues} issues (${validatedResult.summary.critical} critical)`)
-        return validatedResult
-        
+        console.log("✅ Code review completed successfully");
+        console.log(
+          `📊 Found ${validatedResult.summary.totalIssues} issues (${validatedResult.summary.critical} critical)`
+        );
+        return validatedResult;
       } catch (parseError) {
-        console.error('❌ Gagal parse response OpenAI sebagai JSON:', parseError)
-        console.log('📄 Raw response:', content.substring(0, 500))
-        
+        console.error(
+          "❌ Gagal parse response OpenAI sebagai JSON:",
+          parseError
+        );
+        console.log("📄 Raw response:", content.substring(0, 500));
+
         // Create a manual review result from the raw response
         const fallbackSuggestions = [];
-        
+
         // Try to extract useful information from the raw response
-        if (content.includes('error') || content.includes('Error')) {
+        if (content.includes("error") || content.includes("Error")) {
           fallbackSuggestions.push({
             id: `error-${Date.now()}`,
-            type: 'info' as const,
-            severity: 'medium' as const,
+            type: "info" as const,
+            severity: "medium" as const,
             line: 1,
-            title: 'AI Response Error',
-            description: 'AI memberikan respons tapi tidak dalam format yang diharapkan.',
-            suggestion: 'Coba upload kode yang lebih kecil atau gunakan reviewer type yang berbeda.',
-            codeSnippet: { original: '', improved: '' },
-            canAutoFix: false
+            title: "AI Response Error",
+            description:
+              "AI memberikan respons tapi tidak dalam format yang diharapkan.",
+            suggestion:
+              "Coba upload kode yang lebih kecil atau gunakan reviewer type yang berbeda.",
+            codeSnippet: { original: "", improved: "" },
+            canAutoFix: false,
           });
         } else {
           // Extract some content as a general suggestion
-          const truncatedContent = content.substring(0, 150).replace(/[{}[\]"]/g, '');
+          const truncatedContent = content
+            .substring(0, 150)
+            .replace(/[{}[\]"]/g, "");
           fallbackSuggestions.push({
             id: `fallback-${Date.now()}`,
-            type: 'info' as const,
-            severity: 'low' as const,
+            type: "info" as const,
+            severity: "low" as const,
             line: 1,
-            title: 'Review Tersedia (Format Tidak Standar)',
-            description: 'AI sudah memberikan feedback tapi formatnya tidak sesuai.',
-            suggestion: truncatedContent || 'Coba upload ulang atau pilih reviewer personality yang berbeda.',
-            codeSnippet: { original: '', improved: '' },
-            canAutoFix: false
+            title: "Review Tersedia (Format Tidak Standar)",
+            description:
+              "AI sudah memberikan feedback tapi formatnya tidak sesuai.",
+            suggestion:
+              truncatedContent ||
+              "Coba upload ulang atau pilih reviewer personality yang berbeda.",
+            codeSnippet: { original: "", improved: "" },
+            canAutoFix: false,
           });
         }
 
         // Fallback response with concise Indonesian messages
         const sarcasticFallbacks = [
           "AI-nya lagi confused kayaknya 🤖",
-          "Response format error, coba lagi deh �", 
+          "Response format error, coba lagi deh �",
           "Parsing issue, mungkin kode terlalu kompleks 📝",
-          "AI butuh coffee break ☕"
+          "AI butuh coffee break ☕",
         ];
-        
-        const randomMessage = sarcasticFallbacks[Math.floor(Math.random() * sarcasticFallbacks.length)];
-        
+
+        const randomMessage =
+          sarcasticFallbacks[
+            Math.floor(Math.random() * sarcasticFallbacks.length)
+          ];
+
         return {
           score: 5,
           summary: { totalIssues: 1, critical: 0, warning: 0, info: 1 },
@@ -499,26 +548,30 @@ CRITICAL INSTRUCTIONS:
             timestamp: new Date().toISOString(),
             tokensUsed: response.usage?.total_tokens || 0,
             fallback: true,
-            error: randomMessage
-          }
-        }
+            error: randomMessage,
+          },
+        };
       }
     } catch (error: unknown) {
-      console.error('❌ Code review gagal:', error)
-      
+      console.error("❌ Code review gagal:", error);
+
       if (error instanceof Error) {
-        if (error.message.includes('insufficient_quota')) {
-          throw new Error('Kuota OpenAI API habis. Silakan cek pengaturan billing Anda.')
+        if (error.message.includes("insufficient_quota")) {
+          throw new Error(
+            "Kuota OpenAI API habis. Silakan cek pengaturan billing Anda."
+          );
         }
-        
-        if (error.message.includes('invalid_api_key')) {
-          throw new Error('API key OpenAI tidak valid. Silakan cek konfigurasi Anda.')
+
+        if (error.message.includes("invalid_api_key")) {
+          throw new Error(
+            "API key OpenAI tidak valid. Silakan cek konfigurasi Anda."
+          );
         }
-        
-        throw new Error(`Code review gagal: ${error.message}`)
+
+        throw new Error(`Code review gagal: ${error.message}`);
       }
-      
-      throw new Error('Terjadi error yang tidak diketahui saat code review')
+
+      throw new Error("Terjadi error yang tidak diketahui saat code review");
     }
   }
 
@@ -526,9 +579,9 @@ CRITICAL INSTRUCTIONS:
     try {
       const messages = [
         {
-          role: 'system' as const, 
-          content: `Generate best practices dan pola umum untuk bahasa pemrograman ${language} dalam bahasa Indonesia. Sertakan contoh kode dan penjelasan yang detail.`
-        }
+          role: "system" as const,
+          content: `Generate best practices dan pola umum untuk bahasa pemrograman ${language} dalam bahasa Indonesia. Sertakan contoh kode dan penjelasan yang detail.`,
+        },
       ];
 
       const response = await openai.chat.completions.create({
@@ -539,13 +592,14 @@ CRITICAL INSTRUCTIONS:
         frequency_penalty: OPENAI_CONFIG.frequency_penalty,
         presence_penalty: OPENAI_CONFIG.presence_penalty,
         response_format: { type: "json_object" } as const,
-        messages
+        messages,
       });
 
-      return response.choices[0]?.message?.content || '';
+      return response.choices[0]?.message?.content || "";
     } catch (error: unknown) {
-      console.error('❌ Gagal generate best practices:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("❌ Gagal generate best practices:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       throw new Error(`Gagal generate best practices: ${errorMessage}`);
     }
   }
@@ -554,8 +608,8 @@ CRITICAL INSTRUCTIONS:
     return {
       isConnected: this.isConnected,
       model: OPENAI_CONFIG.model,
-      maxTokens: OPENAI_CONFIG.max_tokens
-    }
+      maxTokens: OPENAI_CONFIG.max_tokens,
+    };
   }
 
   async getUsageStats(): Promise<UsageStats> {
@@ -563,16 +617,17 @@ CRITICAL INSTRUCTIONS:
       // Note: OpenAI doesn't provide usage stats directly
       // You might want to track this in your app
       return {
-        message: 'Usage stats not available from OpenAI API',
-        suggestion: 'Check your OpenAI dashboard for detailed usage'
-      }
+        message: "Usage stats not available from OpenAI API",
+        suggestion: "Check your OpenAI dashboard for detailed usage",
+      };
     } catch (error: unknown) {
-      console.error('❌ Gagal mendapatkan usage stats:', error)
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      return { error: errorMessage }
+      console.error("❌ Gagal mendapatkan usage stats:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      return { error: errorMessage };
     }
   }
 }
 
-export const openaiService = new OpenAIService()
-export { REVIEW_PROMPTS }
+export const openaiService = new OpenAIService();
+export { REVIEW_PROMPTS };
