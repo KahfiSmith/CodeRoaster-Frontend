@@ -1,6 +1,6 @@
-import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
-import { UploadedFile, ReviewResult, ReviewType, HistoryItem, SupportedLanguage } from "@/types";
 import { openaiService } from "@/services";
+import { HistoryItem, ReviewResult, ReviewType, SupportedLanguage, UploadedFile } from "@/types";
+import { forwardRef, memo, useEffect, useImperativeHandle, useState } from "react";
 
 interface CodeReviewResultsProps {
   uploadedFiles: UploadedFile[];
@@ -17,7 +17,7 @@ export interface CodeReviewResultsRef {
   startAnalysis: () => void;
 }
 
-export const CodeReviewResults = forwardRef<CodeReviewResultsRef, CodeReviewResultsProps>(
+const CodeReviewResultsComponent = forwardRef<CodeReviewResultsRef, CodeReviewResultsProps>(
   ({ 
     uploadedFiles, 
     reviewType = 'sarcastic', 
@@ -79,7 +79,7 @@ export const CodeReviewResults = forwardRef<CodeReviewResultsRef, CodeReviewResu
       // Create history items for each file
       files.forEach((file) => {
         const historyItem: HistoryItem = {
-          id: `hist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: `hist_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
           filename: file.name,
           language: mapExtensionToLanguage(file.extension || ''),
           reviewResult: result,
@@ -510,3 +510,6 @@ function checkBestPractices() {
     </div>
   );
 });
+
+// Memoized export for performance optimization
+export const CodeReviewResults = memo(CodeReviewResultsComponent);

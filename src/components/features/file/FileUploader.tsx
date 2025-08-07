@@ -114,12 +114,22 @@ export const FileUploader = ({ uploadedFiles, setUploadedFiles, onSubmit, isAnal
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
+          role="button"
+          tabIndex={0}
+          aria-label="Upload code files - drag and drop or click to browse"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              const input = e.currentTarget.querySelector('input[type="file"]') as HTMLInputElement;
+              input?.click();
+            }
+          }}
         >
           <label className="cursor-pointer block">
             <div className="flex flex-col items-center justify-center">
               <img
                 src="icons/folder.svg"
-                alt=""
+                alt="Upload folder icon"
                 className="w-12 h-12"
               />
               <span className="text-charcoal font-bold">
