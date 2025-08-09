@@ -19,12 +19,17 @@ export interface BookmarkItem {
   tags: string[];
   dateAdded: string;
   usageCount: number;
-  source?: 'from-review' | 'manual-add' | 'preset';
+  source?: "from-review" | "manual-add" | "preset";
   isBookmarked?: boolean;
   canAutoFix?: boolean;
 }
 
-export type BookmarkCategory = 'best-practices' | 'security' | 'performance' | 'bugs' | 'documentation';
+export type BookmarkCategory =
+  | "best-practices"
+  | "security"
+  | "performance"
+  | "bugs"
+  | "documentation";
 
 export interface Category {
   id: string;
@@ -65,7 +70,7 @@ export interface BookmarkDetailModalProps {
 
 export interface BookmarkManagerProps {
   initialBookmarks?: BookmarkItem[];
-  onBookmarkAdd?: (bookmark: Omit<BookmarkItem, 'id'>) => void;
+  onBookmarkAdd?: (bookmark: Omit<BookmarkItem, "id">) => void;
   onBookmarkUpdate?: (bookmark: BookmarkItem) => void;
   onBookmarkDelete?: (id: number) => void;
 }
@@ -87,69 +92,103 @@ export interface SearchBarProps {
   };
 }
 
-export type BookmarkSortField = 'title' | 'dateAdded' | 'usageCount' | 'category' | 'language';
-export type SortDirection = 'asc' | 'desc';
+export type BookmarkSortField =
+  | "title"
+  | "dateAdded"
+  | "usageCount"
+  | "category"
+  | "language";
+export type SortDirection = "asc" | "desc";
 
 export interface BookmarkSort {
   field: BookmarkSortField;
   direction: SortDirection;
 }
 
-export const BOOKMARK_CATEGORIES: Record<BookmarkCategory, { name: string; color: string; description: string }> = {
-  'best-practices': {
-    name: 'Best Practices',
-    color: 'bg-amber',
-    description: 'Recommended coding patterns and conventions'
+export const BOOKMARK_CATEGORIES: Record<
+  BookmarkCategory,
+  { name: string; color: string; description: string }
+> = {
+  "best-practices": {
+    name: "Best Practices",
+    color: "bg-amber",
+    description: "Recommended coding patterns and conventions",
   },
-  'security': {
-    name: 'Security',
-    color: 'bg-coral',
-    description: 'Security-related improvements and fixes'
+  security: {
+    name: "Security",
+    color: "bg-coral",
+    description: "Security-related improvements and fixes",
   },
-  'performance': {
-    name: 'Performance',
-    color: 'bg-sky',
-    description: 'Performance optimizations and improvements'
+  performance: {
+    name: "Performance",
+    color: "bg-sky",
+    description: "Performance optimizations and improvements",
   },
-  'bugs': {
-    name: 'Bug Fixes',
-    color: 'bg-soft-coral',
-    description: 'Common bugs and their solutions'
+  bugs: {
+    name: "Bug Fixes",
+    color: "bg-soft-coral",
+    description: "Common bugs and their solutions",
   },
-  'documentation': {
-    name: 'Documentation',
-    color: 'bg-cream',
-    description: 'Documentation and comment improvements'
-  }
+  documentation: {
+    name: "Documentation",
+    color: "bg-cream",
+    description: "Documentation and comment improvements",
+  },
 };
 
 export const SUPPORTED_LANGUAGES = [
-  'javascript',
-  'typescript', 
-  'python',
-  'java',
-  'cpp',
-  'c',
-  'go',
-  'rust',
-  'php',
-  'ruby',
-  'swift',
-  'kotlin',
-  'scala',
-  'html',
-  'css',
-  'json',
-  'yaml',
-  'sql'
+  "javascript",
+  "typescript",
+  "python",
+  "java",
+  "cpp",
+  "c",
+  "go",
+  "rust",
+  "php",
+  "ruby",
+  "swift",
+  "kotlin",
+  "scala",
+  "html",
+  "css",
+  "json",
+  "yaml",
+  "sql",
 ] as const;
 
-export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
+export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
 export interface ReviewSuggestion {
   id: string;
-  type: 'bug' | 'performance' | 'style' | 'security' | 'docs' | 'info' | 'architecture' | 'testing' | 'comedy' | 'disaster' | 'catastrophe' | 'nightmare' | 'unacceptable' | 'critical' | 'opportunity' | 'improvement' | 'enhancement' | 'learning' | 'growth';
-  severity: 'critical' | 'high' | 'medium' | 'low' | 'opportunity' | 'enhancement' | 'suggestion';
+  type:
+    | "bug"
+    | "performance"
+    | "style"
+    | "security"
+    | "docs"
+    | "info"
+    | "architecture"
+    | "testing"
+    | "comedy"
+    | "disaster"
+    | "catastrophe"
+    | "nightmare"
+    | "unacceptable"
+    | "critical"
+    | "opportunity"
+    | "improvement"
+    | "enhancement"
+    | "learning"
+    | "growth";
+  severity:
+    | "critical"
+    | "high"
+    | "medium"
+    | "low"
+    | "opportunity"
+    | "enhancement"
+    | "suggestion";
   line: number;
   title: string;
   description: string;
@@ -244,7 +283,13 @@ export interface UsageStats {
   error?: string;
 }
 
-export type ReviewType = 'codeQuality' | 'security' | 'bestPractices' | 'sarcastic' | 'brutal' | 'encouraging';
+export type ReviewType =
+  | "codeQuality"
+  | "security"
+  | "bestPractices"
+  | "sarcastic"
+  | "brutal"
+  | "encouraging";
 
 export interface ReviewPrompt {
   system: string;
@@ -329,6 +374,75 @@ export interface ConfirmationModalProps {
   message?: string;
   confirmText?: string;
   cancelText?: string;
-  variant?: 'danger' | 'warning' | 'info';
-  icon?: 'trash' | 'warning' | 'alert';
+  variant?: "danger" | "warning" | "info";
+  icon?: "trash" | "warning" | "alert";
+}
+
+export interface AICodeSnippet {
+  original?: string;
+  improved?: string;
+}
+
+export interface AISuggestionResponse {
+  id?: string;
+  type?:
+    | "bug"
+    | "performance"
+    | "style"
+    | "security"
+    | "docs"
+    | "info"
+    | "architecture"
+    | "testing"
+    | "comedy"
+    | "disaster"
+    | "catastrophe"
+    | "nightmare"
+    | "unacceptable"
+    | "critical"
+    | "opportunity"
+    | "improvement"
+    | "enhancement"
+    | "learning"
+    | "growth";
+  severity?:
+    | "critical"
+    | "high"
+    | "medium"
+    | "low"
+    | "opportunity"
+    | "enhancement"
+    | "suggestion";
+  line?: number;
+  title?: string;
+  description?: string;
+  suggestion?: string;
+  codeSnippet?: AICodeSnippet;
+  analogiKocak?: string;
+  urgencyLevel?: string;
+  learningOpportunity?: string;
+  canAutoFix?: boolean;
+}
+
+export interface AIResponseData {
+  score?: number;
+  summary?: {
+    totalIssues?: number;
+    critical?: number;
+    warning?: number;
+    info?: number;
+  };
+  suggestions?: AISuggestionResponse[];
+  overallAssessment?: string;
+  overallSecurityAssessment?: string;
+  overallRoast?: string;
+  brutalAssessment?: string;
+  positiveAssessment?: string;
+  recommendations?: string[];
+  securityChecklist?: string[];
+  designPatterns?: string[];
+  comedyGold?: string[];
+  motivasiSarkastik?: string;
+  harshTruth?: string;
+  growthMindset?: string;
 }

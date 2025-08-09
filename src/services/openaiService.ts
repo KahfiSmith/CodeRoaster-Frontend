@@ -1,12 +1,16 @@
 import { openai, OPENAI_CONFIG, testOpenAIConnection } from "@/config/openai";
 import {
+  AIResponseData,
+  AISuggestionResponse,
   ConnectionResult,
   ConnectionStatus,
   ReviewPrompts,
   ReviewResult,
+  ReviewSuggestion,
   ReviewType,
   UsageStats,
 } from "@/types";
+
 
 // Review prompts for different types of analysis
 const REVIEW_PROMPTS: ReviewPrompts = {
@@ -412,8 +416,7 @@ CRITICAL INSTRUCTIONS:
 
       // Parse JSON response
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const parsedResult = JSON.parse(content) as any; // Use any to access dynamic properties from AI response
+        const parsedResult = JSON.parse(content) as AIResponseData;
 
         // Validate required properties and provide defaults
         const validatedResult: ReviewResult = {
@@ -424,13 +427,12 @@ CRITICAL INSTRUCTIONS:
             warning: parsedResult.summary?.warning || 0,
             info: parsedResult.summary?.info || 0,
           },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           suggestions: Array.isArray(parsedResult.suggestions)
             ? parsedResult.suggestions.map(
-                (suggestion: any, index: number) => ({
+                (suggestion: AISuggestionResponse, index: number) => ({
                   id: suggestion.id || `suggestion-${index}`,
-                  type: suggestion.type || "info",
-                  severity: suggestion.severity || "low",
+                  type: (suggestion.type || "info") as ReviewSuggestion['type'],
+                  severity: (suggestion.severity || "low") as ReviewSuggestion['severity'],
                   line: suggestion.line || 1,
                   title: suggestion.title || `Saran ${index + 1}`,
                   description:
@@ -447,8 +449,7 @@ CRITICAL INSTRUCTIONS:
                   learningOpportunity:
                     suggestion.learningOpportunity || undefined,
                   canAutoFix: suggestion.canAutoFix || false,
-                })
-              )
+                }))
             : [],
           metadata: {
             reviewType,
