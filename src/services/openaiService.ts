@@ -336,7 +336,7 @@ class OpenAIService {
         console.log("✅ OpenAI API connected successfully");
         console.log(
           "📋 Available models:",
-          result.availableModels?.slice(0, 5)
+          result.availableModels?.slice(0, 10)
         );
       } else {
         console.error("❌ OpenAI connection failed:", result.message);
