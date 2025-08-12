@@ -4,7 +4,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 
 // Lazy load components for better performance
 const CodeReviewer = lazy(() => import("@/pages"));
-const History = lazy(() => import("./pages/history"));
+const History = lazy(() => import("@/pages/history"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 // Loading component
