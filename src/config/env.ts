@@ -2,12 +2,18 @@
 export const ENV = {
   // OpenAI Settings
   OPENAI_API_KEY: import.meta.env.VITE_OPENAI_API_KEY,
-  OPENAI_MODEL: import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o-mini',
-  OPENAI_MAX_TOKENS: parseInt(import.meta.env.VITE_OPENAI_MAX_TOKENS) || 2000, // Optimized for concise reviews
-  OPENAI_TEMPERATURE: parseFloat(import.meta.env.VITE_OPENAI_TEMPERATURE) || 0.1, // Lower for consistent JSON format
+  // Default review model set to gpt-5-mini (can be overridden via env)
+  OPENAI_MODEL: import.meta.env.VITE_OPENAI_MODEL || 'gpt-5-mini',
+  // Allow per-model defaults to kick in when env overrides are not provided
+  OPENAI_MAX_TOKENS: import.meta.env.VITE_OPENAI_MAX_TOKENS !== undefined
+    ? parseInt(import.meta.env.VITE_OPENAI_MAX_TOKENS)
+    : undefined as unknown as number,
+  OPENAI_TEMPERATURE: import.meta.env.VITE_OPENAI_TEMPERATURE !== undefined
+    ? parseFloat(import.meta.env.VITE_OPENAI_TEMPERATURE)
+    : undefined as unknown as number,
   
   // App Settings
-  APP_NAME: import.meta.env.VITE_APP_NAME || 'Code Reviewer AI',
+  APP_NAME: import.meta.env.VITE_APP_NAME || 'Code Roaster',
   APP_VERSION: import.meta.env.VITE_APP_VERSION || '1.0.0',
   
   // Environment Info
@@ -19,6 +25,15 @@ export const ENV = {
 // Validation function
 export const validateEnvironment = () => {
   const errors = []
+  const allowedModels = [
+    'gpt-5-mini',
+    'gpt-5-nano',
+    'gpt-4.1-mini',
+    'gpt-4.1-nano',
+    'gpt-4o-mini',
+    'o1-mini',
+    'o4-mini'
+  ]
   
   if (!ENV.OPENAI_API_KEY) {
     errors.push('❌ VITE_OPENAI_API_KEY is required in .env.local')
@@ -27,12 +42,16 @@ export const validateEnvironment = () => {
   if (!ENV.OPENAI_API_KEY?.startsWith('sk-')) {
     errors.push('❌ Invalid OpenAI API key format. Should start with "sk-"')
   }
+
+  if (!allowedModels.includes(ENV.OPENAI_MODEL)) {
+    errors.push(`❌ VITE_OPENAI_MODEL must be one of: ${allowedModels.join(', ')}`)
+  }
   
-  if (ENV.OPENAI_MAX_TOKENS < 500 || ENV.OPENAI_MAX_TOKENS > 3000) {
+  if (ENV.OPENAI_MAX_TOKENS !== undefined && (ENV.OPENAI_MAX_TOKENS < 500 || ENV.OPENAI_MAX_TOKENS > 3000)) {
     errors.push('❌ OPENAI_MAX_TOKENS should be between 500-3000 for optimal performance')
   }
   
-  if (ENV.OPENAI_TEMPERATURE < 0 || ENV.OPENAI_TEMPERATURE > 2) {
+  if (ENV.OPENAI_TEMPERATURE !== undefined && (ENV.OPENAI_TEMPERATURE < 0 || ENV.OPENAI_TEMPERATURE > 2)) {
     errors.push('❌ OPENAI_TEMPERATURE should be between 0-2')
   }
   
