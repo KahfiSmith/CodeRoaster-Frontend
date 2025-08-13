@@ -31,7 +31,7 @@ describe('useHistoryManagement', () => {
       },
       suggestions: [],
       metadata: {
-        model: "gpt-4o-mini",
+        model: "gpt-5-mini",
         reviewType: "codeQuality",
         language: "typescript",
         tokensUsed: 150,

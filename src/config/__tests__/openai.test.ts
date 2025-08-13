@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from 'vitest'
 vi.mock('@/config/env', () => ({
   ENV: {
     OPENAI_API_KEY: 'test-api-key',
-    OPENAI_MODEL: 'gpt-4o-mini',
+    OPENAI_MODEL: 'gpt-5-mini',
     OPENAI_TEMPERATURE: 0.7,
     OPENAI_MAX_TOKENS: 2000
   }
@@ -32,7 +32,7 @@ describe('OpenAI Configuration', () => {
   describe('OPENAI_CONFIG', () => {
     it('should have correct default configuration', () => {
       expect(OPENAI_CONFIG).toEqual({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5-mini',
         temperature: 0.7,
         max_tokens: 2000,
         top_p: 1,
@@ -43,7 +43,7 @@ describe('OpenAI Configuration', () => {
     })
 
     it('should use environment variables for key settings', () => {
-      expect(OPENAI_CONFIG.model).toBe('gpt-4o-mini')
+      expect(OPENAI_CONFIG.model).toBe('gpt-5-mini')
       expect(OPENAI_CONFIG.temperature).toBe(0.7)
       expect(OPENAI_CONFIG.max_tokens).toBe(2000)
     })
@@ -51,32 +51,30 @@ describe('OpenAI Configuration', () => {
 
   describe('OPENAI_MODELS', () => {
     it('should contain all expected models', () => {
-      const expectedModels = ['gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo']
+      const expectedModels = [
+        'gpt-5-mini', 'gpt-5-nano', 'gpt-4.1-mini', 'gpt-4.1-nano', 
+        'gpt-4o-mini', 'o1-mini', 'o4-mini'
+      ]
       const actualModels = Object.keys(OPENAI_MODELS)
       
       expect(actualModels).toEqual(expectedModels)
     })
 
     it('should have correct model metadata', () => {
-      expect(OPENAI_MODELS['gpt-4o']).toEqual({
-        name: 'GPT-4 Omni',
-        description: 'Most capable model, best for complex code review',
-        cost: 'High',
-        speed: 'Medium'
+      expect(OPENAI_MODELS['gpt-5-mini']).toEqual({
+        name: 'GPT-5 Mini',
+        description: 'Latest GPT-5 model, best for code review and analysis',
+        cost: 'Medium-High',
+        speed: 'Fast',
+        recommended: true
       })
 
       expect(OPENAI_MODELS['gpt-4o-mini']).toEqual({
         name: 'GPT-4 Omni Mini',
-        description: 'Balanced performance and cost',
+        description: 'Reliable GPT-4 model for code review',
         cost: 'Medium',
-        speed: 'Fast'
-      })
-
-      expect(OPENAI_MODELS['gpt-3.5-turbo']).toEqual({
-        name: 'GPT-3.5 Turbo',
-        description: 'Fast and economical',
-        cost: 'Low',
-        speed: 'Very Fast'
+        speed: 'Fast',
+        recommended: false
       })
     })
 
@@ -86,7 +84,12 @@ describe('OpenAI Configuration', () => {
         expect(model).toHaveProperty('description')
         expect(model).toHaveProperty('cost')
         expect(model).toHaveProperty('speed')
+        expect(model).toHaveProperty('recommended')
       })
+    })
+
+    it('should mark gpt-5-mini as recommended', () => {
+      expect(OPENAI_MODELS['gpt-5-mini'].recommended).toBe(true)
     })
   })
 
@@ -100,7 +103,7 @@ describe('OpenAI Configuration', () => {
     it('should handle successful connection', async () => {
       mockModelsListFn.mockResolvedValueOnce({
         data: [
-          { id: 'gpt-4o', object: 'model' },
+          { id: 'gpt-5-mini', object: 'model' },
           { id: 'gpt-4o-mini', object: 'model' }
         ]
       })
@@ -110,7 +113,7 @@ describe('OpenAI Configuration', () => {
 
       expect(result.success).toBe(true)
       expect(result.message).toBe('OpenAI API connected successfully')
-      expect(result.availableModels).toEqual(['gpt-4o', 'gpt-4o-mini'])
+      expect(result.availableModels).toEqual(['gpt-5-mini', 'gpt-4o-mini'])
     })
 
     it('should handle connection failure', async () => {
