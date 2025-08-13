@@ -1,4 +1,6 @@
 import { openai, OPENAI_CONFIG, testOpenAIConnection } from "@/config/openai";
+import type { ChatCompletionCreateParamsNonStreaming } from "openai/resources/chat/completions";
+type ChatParams = ChatCompletionCreateParamsNonStreaming & { max_completion_tokens?: number }
 import {
   AIResponseData,
   AISuggestionResponse,
@@ -67,9 +69,11 @@ Berikan 3-5 suggestions yang paling penting dan actionable.`,
   },
 
   sarcastic: {
-    system: `Kamu adalah code reviewer sarkastik tapi membantu dalam bahasa Indonesia. Kasih review yang entertaining tapi concise.
+    system: `Lu adalah code reviewer ROASTER yang sarkastik tapi tetap bantuin. Gaya bahasa: bahasa gaul santai (lu/gue), nyeleneh, nggak kaku, fun, tapi tetep respect (hindari kata kasar/menyerang). Fokus tetap teknis dan actionable.
 
-WAJIB: Respons hanya dalam format JSON yang valid, tidak ada teks lain.
+WAJIB: Respons cuma dalam format JSON yang valid. Jangan ada teks di luar JSON.
+
+Gaya output: singkat, pedes tapi informatif, pake istilah gaul (mis. "ini bikin performa ngedrop parah", "struktur kodenya masih acak-adul, yuk dirapiin").
 
 Format JSON yang HARUS diikuti:
 {
@@ -80,42 +84,42 @@ Format JSON yang HARUS diikuti:
     "warning": number,
     "info": number
   },
-  "overallRoast": "Roasting kocak tentang kode ini dalam 2-3 kalimat",
+  "overallRoast": "Roasting kocak, bahasa gaul, 2-3 kalimat",
   "suggestions": [
     {
       "id": "roast-1",
       "type": "bug|performance|style|security|docs|comedy",
       "severity": "high|medium|low",
       "line": number,
-      "title": "Judul sarkastik",
-      "description": "Penjelasan sarkastik dalam 1-2 kalimat",
-      "suggestion": "Solusi dengan gaya roasting dalam 1-2 kalimat",
+      "title": "Judul roasting singkat (gaul)",
+      "description": "Penjelasan gaul 1-2 kalimat, to the point",
+      "suggestion": "Solusi teknis singkat & actionable (tetap gaul)",
       "codeSnippet": {
         "original": "kode bermasalah",
         "improved": "kode yang diperbaiki"
       },
-      "analogiKocak": "Analogi lucu singkat",
+      "analogiKocak": "Analogi lucu 1 kalimat",
       "canAutoFix": boolean
     }
   ],
   "comedyGold": [
-    "Quote kocak singkat 1",
-    "Quote kocak singkat 2"
+    "Satu-liner kocak 1",
+    "Satu-liner kocak 2"
   ]
 }
 
-Berikan review yang lucu tapi tetap berguna dalam bahasa Indonesia.`,
+Ingat: tetep sopan, no toxic. Prioritas: manfaat teknis + bahasa gaul yang friendly.`,
 
     user: (
       code,
       language
-    ) => `Roasting kode ${language} berikut dengan gaya sarkastik yang concise:
+    ) => `Roasting kode ${language} berikut pake bahasa gaul santai (lu/gue), pedes tapi bantuin, tetep singkat & fokus:
 
 \`\`\`${language}
 ${code}
 \`\`\`
 
-Kasih 3-5 roasting yang kocak tapi berguna.`,
+Kasih 3-5 roasting yang kocak tapi berguna, jangan kepanjangan.`,
   },
 
   brutal: {
@@ -385,26 +389,128 @@ CRITICAL INSTRUCTIONS:
 4. Each suggestion should be clear and actionable, not overly verbose.
 5. No explanations outside JSON, ONLY valid JSON with focused content.`;
 
-      const messages = [
-        { role: "system" as const, content: systemPrompt },
-        { role: "user" as const, content: prompt.user(code, language) },
-      ];
+      const isOModel = (modelId: string) => /^o\d/i.test((modelId || '').trim())
+      const MODELS_COMPLETION = new Set([
+        'gpt-5-mini',
+        'gpt-5-nano',
+        'gpt-4.1-mini',
+        'gpt-4.1-nano',
+        'gpt-4o-mini',
+        'o1-mini',
+        'o4-mini',
+      ])
+      const usesCompletionTokens = (modelId: string) => MODELS_COMPLETION.has((modelId || '').trim()) || isOModel(modelId)
+      const messages = isOModel(OPENAI_CONFIG.model)
+        ? [
+            { role: "user" as const, content: `${systemPrompt}\n\n${prompt.user(code, language)}` },
+          ]
+        : [
+            { role: "system" as const, content: systemPrompt },
+            { role: "user" as const, content: prompt.user(code, language) },
+          ]
 
       // Create request object with optimized settings for reliable responses
-      const requestOptions = {
+      // Some models (o* family) require `max_completion_tokens` instead of `max_tokens`
+      const useCompletionTokens = usesCompletionTokens(OPENAI_CONFIG.model)
+      type ChatParams = ChatCompletionCreateParamsNonStreaming & { max_completion_tokens?: number }
+      const requestOptions: ChatParams = {
         model: OPENAI_CONFIG.model,
-        temperature: OPENAI_CONFIG.temperature, // Now 0.1 for consistent JSON format
-        max_tokens: OPENAI_CONFIG.max_tokens, // Now 2000 for optimal balance
-        top_p: OPENAI_CONFIG.top_p,
-        frequency_penalty: OPENAI_CONFIG.frequency_penalty,
-        presence_penalty: OPENAI_CONFIG.presence_penalty,
-        response_format: { type: "json_object" } as const,
         messages,
-      };
+      } as ChatParams
+      // Always request JSON response; if model rejects, we retry without in catch
+      ;(requestOptions as ChatParams).response_format = { type: "json_object" } as const
+      if (useCompletionTokens) {
+        requestOptions.max_completion_tokens = OPENAI_CONFIG.max_tokens
+      } else {
+        requestOptions.max_tokens = OPENAI_CONFIG.max_tokens
+        requestOptions.temperature = OPENAI_CONFIG.temperature
+        requestOptions.top_p = OPENAI_CONFIG.top_p
+        requestOptions.frequency_penalty = OPENAI_CONFIG.frequency_penalty
+        requestOptions.presence_penalty = OPENAI_CONFIG.presence_penalty
+      }
 
-      const response = await openai.chat.completions.create(requestOptions);
+      let response;
+      try {
+        response = await openai.chat.completions.create(requestOptions);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err)
+        // Retry: switch to max_completion_tokens if max_tokens unsupported
+        if (message.includes("Unsupported parameter") && message.includes("max_tokens")) {
+          const retryOptions: ChatParams = {
+            model: OPENAI_CONFIG.model,
+            messages,
+            max_completion_tokens: OPENAI_CONFIG.max_tokens,
+          } as ChatParams
+          try {
+            response = await openai.chat.completions.create(retryOptions)
+          } catch (err2: unknown) {
+            // Final fallback: minimal payload (only model, messages, and token cap)
+            const minimal: ChatParams = {
+              model: OPENAI_CONFIG.model,
+              messages,
+            } as ChatParams
+            if (usesCompletionTokens(OPENAI_CONFIG.model)) {
+              minimal.max_completion_tokens = OPENAI_CONFIG.max_tokens
+            } else {
+              minimal.max_tokens = OPENAI_CONFIG.max_tokens
+            }
+            response = await openai.chat.completions.create(minimal)
+          }
+        } else if (message.includes("response_format") || message.includes("json_object")) {
+          // Retry without response_format for models that reject it
+          const minimal: ChatParams = {
+            model: OPENAI_CONFIG.model,
+            messages,
+          } as ChatParams
+          if (usesCompletionTokens(OPENAI_CONFIG.model)) {
+            minimal.max_completion_tokens = OPENAI_CONFIG.max_tokens
+          } else {
+            minimal.max_tokens = OPENAI_CONFIG.max_tokens
+          }
+          response = await openai.chat.completions.create(minimal)
+        } else {
+          throw err
+        }
+      }
 
       let content = response.choices[0]?.message?.content?.trim() || "{}";
+      // If model did not honor response_format and returned text, retry once to force JSON
+      if (!/^\s*\{[\s\S]*\}\s*$/.test(content)) {
+        const forceJsonMessages = [
+          ...messages,
+          { role: "user" as const, content: "Ulangi jawaban DALAM JSON VALID sesuai schema di instruksi. Wajib 3-5 suggestions. Jangan ada teks di luar JSON." },
+        ]
+        const forceJsonOptions: ChatParams = {
+          model: OPENAI_CONFIG.model,
+          messages: forceJsonMessages,
+        } as ChatParams
+        if (useCompletionTokens) {
+          forceJsonOptions.max_completion_tokens = OPENAI_CONFIG.max_tokens
+        } else {
+          forceJsonOptions.max_tokens = OPENAI_CONFIG.max_tokens
+          forceJsonOptions.temperature = OPENAI_CONFIG.temperature
+          forceJsonOptions.top_p = OPENAI_CONFIG.top_p
+          forceJsonOptions.frequency_penalty = OPENAI_CONFIG.frequency_penalty
+          forceJsonOptions.presence_penalty = OPENAI_CONFIG.presence_penalty
+          ;(forceJsonOptions as ChatParams).response_format = { type: "json_object" } as const
+        }
+        try {
+          const retryResp = await openai.chat.completions.create(forceJsonOptions)
+          content = retryResp.choices[0]?.message?.content?.trim() || content
+        } catch {
+          // keep original content
+        }
+        // final guard: if still not JSON, coerce minimal JSON to avoid empty UI
+        if (!/^\s*\{[\s\S]*\}\s*$/.test(content)) {
+          const safe = {
+            score: 50,
+            summary: { totalIssues: 0, critical: 0, warning: 0, info: 0 },
+            overallAssessment: content.slice(0, 300),
+            suggestions: [] as unknown[],
+          }
+          content = JSON.stringify(safe)
+        }
+      }
 
       // Clean up the response to extract JSON if it's wrapped in other text
       const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -473,6 +579,54 @@ CRITICAL INSTRUCTIONS:
             growthMindset: parsedResult.growthMindset || undefined,
           },
         };
+
+        // If suggestions kosong atau nol, minta pengulangan sekali lagi untuk mengisi suggestions
+        if (!validatedResult.suggestions || validatedResult.suggestions.length === 0) {
+          const nudgeMessages = [
+            ...messages,
+            { role: "user" as const, content: "Tambahkan 3-5 suggestions yang paling penting. Format tetap JSON valid sesuai schema." },
+          ]
+          const nudgeOptions: ChatParams = {
+            model: OPENAI_CONFIG.model,
+            messages: nudgeMessages,
+          } as ChatParams
+          if (useCompletionTokens) {
+            nudgeOptions.max_completion_tokens = OPENAI_CONFIG.max_tokens
+          } else {
+            nudgeOptions.max_tokens = OPENAI_CONFIG.max_tokens
+            nudgeOptions.temperature = OPENAI_CONFIG.temperature
+            nudgeOptions.top_p = OPENAI_CONFIG.top_p
+            nudgeOptions.frequency_penalty = OPENAI_CONFIG.frequency_penalty
+            nudgeOptions.presence_penalty = OPENAI_CONFIG.presence_penalty
+            ;(nudgeOptions as ChatParams).response_format = { type: "json_object" } as const
+          }
+          try {
+            const nudgeResp = await openai.chat.completions.create(nudgeOptions)
+            let nudgeContent = nudgeResp.choices[0]?.message?.content?.trim() || "{}"
+            const nudgeMatch = nudgeContent.match(/\{[\s\S]*\}/)
+            if (nudgeMatch) nudgeContent = nudgeMatch[0]
+            const nudgeParsed = JSON.parse(nudgeContent) as AIResponseData
+            if (Array.isArray(nudgeParsed.suggestions) && nudgeParsed.suggestions.length > 0) {
+              validatedResult.suggestions = nudgeParsed.suggestions.map((suggestion: AISuggestionResponse, index: number) => ({
+                id: suggestion.id || `suggestion-${index}`,
+                type: (suggestion.type || "info") as ReviewSuggestion['type'],
+                severity: (suggestion.severity || "low") as ReviewSuggestion['severity'],
+                line: suggestion.line || 1,
+                title: suggestion.title || `Saran ${index + 1}`,
+                description: suggestion.description || "Tidak ada deskripsi tersedia",
+                suggestion: suggestion.suggestion || "Tidak ada saran spesifik",
+                codeSnippet: {
+                  original: suggestion.codeSnippet?.original || "",
+                  improved: suggestion.codeSnippet?.improved || "",
+                },
+                analogiKocak: suggestion.analogiKocak || undefined,
+                urgencyLevel: suggestion.urgencyLevel || undefined,
+                learningOpportunity: suggestion.learningOpportunity || undefined,
+                canAutoFix: suggestion.canAutoFix || false,
+              }))
+            }
+          } catch {/* ignore nudge failure */}
+        }
 
         console.log("✅ Code review completed successfully");
         console.log(
@@ -578,23 +732,54 @@ CRITICAL INSTRUCTIONS:
 
   async generateBestPractices(language: string): Promise<string> {
     try {
-      const messages = [
-        {
-          role: "system" as const,
-          content: `Generate best practices dan pola umum untuk bahasa pemrograman ${language} dalam bahasa Indonesia. Sertakan contoh kode dan penjelasan yang detail.`,
-        },
-      ];
+      const isOModel = (modelId: string) => /^o\d/i.test((modelId || '').trim())
+      const messages = isOModel(OPENAI_CONFIG.model)
+        ? [
+            {
+              role: "user" as const,
+              content: `Generate best practices dan pola umum untuk bahasa pemrograman ${language} dalam bahasa Indonesia. Sertakan contoh kode dan penjelasan yang detail.`,
+            },
+          ]
+        : [
+            {
+              role: "system" as const,
+              content: `Generate best practices dan pola umum untuk bahasa pemrograman ${language} dalam bahasa Indonesia. Sertakan contoh kode dan penjelasan yang detail.`,
+            },
+          ]
 
-      const response = await openai.chat.completions.create({
+      const requiresCompletionTokens = (modelId: string) => /^o\d/i.test((modelId || '').trim())
+      const useCompletionTokensBP = requiresCompletionTokens(OPENAI_CONFIG.model)
+      const bestPracticesOptions: ChatParams = {
         model: OPENAI_CONFIG.model,
-        temperature: OPENAI_CONFIG.temperature,
-        max_tokens: OPENAI_CONFIG.max_tokens,
-        top_p: OPENAI_CONFIG.top_p,
-        frequency_penalty: OPENAI_CONFIG.frequency_penalty,
-        presence_penalty: OPENAI_CONFIG.presence_penalty,
-        response_format: { type: "json_object" } as const,
         messages,
-      });
+      } as ChatParams
+      // Always request JSON response; if model rejects, we retry without in catch
+      ;(bestPracticesOptions as ChatParams).response_format = { type: "json_object" } as const
+      if (useCompletionTokensBP) {
+        bestPracticesOptions.max_completion_tokens = OPENAI_CONFIG.max_tokens
+      } else {
+        bestPracticesOptions.max_tokens = OPENAI_CONFIG.max_tokens
+        bestPracticesOptions.temperature = OPENAI_CONFIG.temperature
+        bestPracticesOptions.top_p = OPENAI_CONFIG.top_p
+        bestPracticesOptions.frequency_penalty = OPENAI_CONFIG.frequency_penalty
+        bestPracticesOptions.presence_penalty = OPENAI_CONFIG.presence_penalty
+      }
+      let response;
+      try {
+        response = await openai.chat.completions.create(bestPracticesOptions);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err)
+        if (message.includes("Unsupported parameter") && message.includes("max_tokens")) {
+          const retryOptions: ChatParams = {
+            model: OPENAI_CONFIG.model,
+            messages,
+            max_completion_tokens: OPENAI_CONFIG.max_tokens,
+          } as ChatParams
+          response = await openai.chat.completions.create(retryOptions)
+        } else {
+          throw err
+        }
+      }
 
       return response.choices[0]?.message?.content || "";
     } catch (error: unknown) {
