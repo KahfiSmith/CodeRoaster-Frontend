@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 export const Header = () => {
   return (
-    <div className="text-center">
+    <div className="text-center mt-10">
       <div className="p-8 rounded-lg bg-soft-coral/80 border-3 border-coral">
         <h1 className="text-4xl text-coral mb-3 flex items-center gap-3 font-bold justify-center">
           <img src="icons/coffee.svg" alt="" className="w-10 h-10" />
