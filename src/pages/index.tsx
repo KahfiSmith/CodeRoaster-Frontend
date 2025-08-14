@@ -7,6 +7,7 @@ import {
 } from "@/components/features/review";
 import { Header } from "@/components/layout";
 import { Button } from "@/components/ui/button";
+ 
 import { useOpenAIValidation } from "@/hooks";
 
 export default function CodeReviewer() {
@@ -86,6 +87,7 @@ export default function CodeReviewer() {
 
   return (
     <div className="bg-cream min-h-screen p-8">
+      
       <Header />
 
       {/* Review Type Selector */}

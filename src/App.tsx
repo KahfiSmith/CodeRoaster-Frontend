@@ -1,6 +1,8 @@
-import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import { Route, BrowserRouter as Router, Routes, Outlet } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { ThemeToggleFloating } from "@/components/common";
+import { ThemeProvider } from "@/providers";
 
 // Lazy load components for better performance
 const CodeReviewer = lazy(() => import("@/pages"));
@@ -14,21 +16,32 @@ const PageLoader = () => (
   </div>
 );
 
+const AppLayout = () => (
+  <>
+    <ThemeToggleFloating />
+    <Outlet />
+  </>
+);
+
 function App() {
   return (
     <ErrorBoundary>
-      <Router>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            {/* Index */}
-            <Route path="/" element={<CodeReviewer />} />
-            <Route path="/history" element={<History />} />
+      <ThemeProvider>
+        <Router>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route element={<AppLayout />}>
+                {/* Index */}
+                <Route path="/" element={<CodeReviewer />} />
+                <Route path="/history" element={<History />} />
+              </Route>
 
-            {/* Error Page */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </Router>
+              {/* Error Page */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </Router>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }

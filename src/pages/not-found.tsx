@@ -1,24 +1,15 @@
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export default function NotFound() {
-  const navigate = useNavigate();
-
-  const handleGoBack = () => {
-    navigate(-1);
-  };
-
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
-      <h1 className="text-[100px] font-bold text-slate-600">404</h1>
-      <p className="text-slate-600 mb-6">
-        Oops! The page you're looking for doesn't exist.
-      </p>
-      <button
-        onClick={handleGoBack}
-        className="px-4 py-2 bg-[#7939ef] text-white rounded font-medium transition-all"
+    <div className="flex flex-col items-center justify-center min-h-screen px-4 text-center bg-cream">
+      <h1 className="text-4xl font-bold mb-4 text-charcoal">404 - Page Not Found</h1>
+      <p className="mb-8 text-charcoal">The page you are looking for does not exist.</p>
+      <Link to="/" 
+        className="px-4 py-2 bg-amber text-charcoal rounded-full hover:bg-retro-coral transition-colors font-medium border-2 border-charcoal"
       >
-        Go Back
-      </button>
+        Return to Home
+      </Link>
     </div>
   );
 }

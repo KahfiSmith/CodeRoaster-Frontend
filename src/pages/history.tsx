@@ -14,6 +14,7 @@ import {
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { useHistoryManagement, useHistoryFilters } from "@/hooks";
 import { HistoryItem } from "@/types";
+ 
 
 export default function History() {
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
@@ -43,6 +44,7 @@ export default function History() {
 
   return (
     <div className="bg-cream min-h-screen p-8">
+      
       <Header />
 
       <div className="flex flex-col lg:flex-row gap-8">
