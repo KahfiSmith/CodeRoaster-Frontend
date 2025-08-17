@@ -23,17 +23,17 @@ const HistoryFilters: React.FC<HistoryFiltersProps> = ({
   onClearAllHistory,
 }) => {
   return (
-    <div className="bg-sky border-4 border-charcoal rounded-lg shadow-[0px_4px_0px_0px_#27292b] sticky top-8">
-      <div className="bg-charcoal p-4 border-b-4 border-charcoal">
-        <h2 className="text-xl font-bold text-sky flex items-center gap-2">
+    <div className="bg-sky border-4 border-charcoal dark:border-cream rounded-lg shadow-[0px_4px_0px_0px_#27292b] sticky top-8">
+      <div className="bg-charcoal dark:bg-cream p-4 border-b-4 border-charcoal dark:border-cream rounded-t-sm">
+        <h2 className="text-xl font-bold text-sky dark:text-charcoal flex items-center gap-2">
           <Filter className="w-5 h-5" />
           Filters
         </h2>
       </div>
-      <div className="p-4 bg-sky/80 space-y-4">
+      <div className="p-4 bg-sky/80 dark:bg-coal-400 space-y-4">
         {/* Language Filter */}
         <div>
-          <label className="block text-sm font-bold text-charcoal mb-2">Language</label>
+          <label className="block text-sm font-bold text-charcoal dark:text-cream mb-2">Language</label>
           <select
             value={filter.language}
             onChange={(e) => setFilter(prev => ({ ...prev, language: e.target.value }))}
@@ -50,7 +50,7 @@ const HistoryFilters: React.FC<HistoryFiltersProps> = ({
 
         {/* Review Type Filter */}
         <div>
-          <label className="block text-sm font-bold text-charcoal mb-2">Review Type</label>
+          <label className="block text-sm font-bold text-charcoal dark:text-cream mb-2">Review Type</label>
           <select
             value={filter.reviewType}
             onChange={(e) => setFilter(prev => ({ ...prev, reviewType: e.target.value }))}
@@ -68,7 +68,7 @@ const HistoryFilters: React.FC<HistoryFiltersProps> = ({
 
         {/* Severity Filter */}
         <div>
-          <label className="block text-sm font-bold text-charcoal mb-2">Severity</label>
+          <label className="block text-sm font-bold text-charcoal dark:text-cream mb-2">Severity</label>
           <select
             value={filter.severity}
             onChange={(e) => setFilter(prev => ({ ...prev, severity: e.target.value }))}
@@ -83,7 +83,7 @@ const HistoryFilters: React.FC<HistoryFiltersProps> = ({
 
         {/* Date Range Filter */}
         <div>
-          <label className="block text-sm font-bold text-charcoal mb-2">Date Range</label>
+          <label className="block text-sm font-bold text-charcoal dark:text-cream mb-2">Date Range</label>
           <select
             value={filter.dateRange}
             onChange={(e) => setFilter(prev => ({ ...prev, dateRange: e.target.value }))}
@@ -97,7 +97,7 @@ const HistoryFilters: React.FC<HistoryFiltersProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="space-y-2 pt-4 border-t-2 border-charcoal">
+        <div className="space-y-2 pt-4 border-t-2 border-charcoal dark:border-cream">
           <button
             onClick={onRefreshHistory}
             className="w-full p-2 bg-sky border-2 border-charcoal rounded font-bold text-charcoal hover:bg-sky/80 transition-colors flex items-center gap-2 justify-center"
