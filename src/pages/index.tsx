@@ -86,14 +86,14 @@ export default function CodeReviewer() {
   };
 
   return (
-    <div className="bg-cream min-h-screen p-8">
+    <div className="bg-cream dark:bg-coal-500 min-h-screen p-8">
       
       <Header />
 
       {/* Review Type Selector */}
       <div>
-        <div className="bg-charcoal p-6 rounded-lg border-3 border-charcoal shadow-[0px_4px_0px_0px_#27292b]">
-          <h3 className="text-sky font-bold text-lg mb-4 flex items-center gap-2">
+        <div className="bg-charcoal dark:bg-coal-400 p-6 rounded-lg border-3 border-charcoal dark:border-cream">
+          <h3 className="text-sky dark:text-cream font-bold text-lg mb-4 flex items-center gap-2">
             <span>🎭</span>
             Pilih Kepribadian Reviewer Kamu
           </h3>
@@ -117,7 +117,7 @@ export default function CodeReviewer() {
               </Button>
             ))}
           </div>
-          <div className="mt-4 text-sky/70 text-sm text-center">
+          <div className="mt-4 text-sky dark:text-cream text-sm text-center">
             💡 <strong>Tip:</strong> Mulai dengan "Roasting Sarkastik" untuk nilai 
             entertainment maksimal! 😈
           </div>
