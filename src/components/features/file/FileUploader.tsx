@@ -73,16 +73,16 @@ export const FileUploader = ({ uploadedFiles, setUploadedFiles, onSubmit, isAnal
   }, [setUploadedFiles]);
 
   return (
-    <div className="bg-amber border-4 border-charcoal rounded-lg p-8 shadow-[0px_4px_0px_0px_#27292b]">
+    <div className="bg-amber dark:bg-coal-400 border-4 border-charcoal dark:border-cream rounded-lg p-8 shadow-[0px_4px_0px_0px_#27292b]">
       <div className="text-center">
         <div className="mb-6">
           <div className="w-16 h-16 mx-auto mb-4 bg-charcoal rounded-full flex items-center justify-center">
-            <CloudUpload className="w-8 h-8 text-amber" />
+            <CloudUpload className="w-8 h-8 text-amber dark:text-cream" />
           </div>
-          <h3 className="text-xl font-bold text-charcoal mb-2">
+          <h3 className="text-xl font-bold text-charcoal dark:text-cream mb-2">
             Upload Your Code
           </h3>
-          <p className="text-charcoal/80 font-medium mb-4">
+          <p className="text-charcoal/80 dark:text-cream/80 font-medium mb-4">
             Drag & drop your file or click to browse
           </p>
           <div className="flex flex-wrap justify-center gap-2 mb-6">
@@ -100,7 +100,7 @@ export const FileUploader = ({ uploadedFiles, setUploadedFiles, onSubmit, isAnal
             ].map((format) => (
               <span
                 key={format}
-                className="bg-charcoal text-amber px-2 py-1 text-xs font-bold rounded border-2 border-charcoal"
+                className="bg-charcoal text-amber dark:text-cream px-2 py-1 text-xs font-bold rounded border-2 border-charcoal"
               >
                 {format}
               </span>
@@ -108,8 +108,8 @@ export const FileUploader = ({ uploadedFiles, setUploadedFiles, onSubmit, isAnal
           </div>
         </div>
         <div 
-          className={`border-3 border-dashed border-charcoal rounded-lg p-6 ${
-            isDragging ? 'bg-coral/30' : 'bg-amber/20 hover:bg-coral/30'
+          className={`border-3 border-dashed bg-cream/50 border-charcoal dark:border-charcoal/50 rounded-lg p-6 ${
+            isDragging ? 'bg-coral/30 dark:bg-cream' : 'bg-amber/20 dark:bg-cream hover:bg-cream/80 dark:hover:bg-cream/80'
           } transition-colors duration-200`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -151,14 +151,14 @@ export const FileUploader = ({ uploadedFiles, setUploadedFiles, onSubmit, isAnal
 
         <div className="mt-6">
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-lg font-bold text-charcoal">
+            <h4 className="text-lg font-bold text-charcoal dark:text-cream">
               Files{" "}
-              <span className="text-sm font-normal text-charcoal/70">
+              <span className="text-sm font-normal text-charcoal/70 dark:text-cream/70">
                 ({uploadedFiles.length})
               </span>
             </h4>
             <button 
-              className="text-xs bg-charcoal text-amber px-2 py-1 rounded font-bold hover:bg-charcoal/80 transition-colors"
+              className="text-xs bg-charcoal dark:bg-cream text-amber dark:text-charcoal px-2 py-1 rounded font-bold hover:bg-charcoal/80 dark:hover:bg-cream/80 transition-colors"
               onClick={clearAllFiles}
               disabled={uploadedFiles.length === 0}
             >
@@ -170,21 +170,21 @@ export const FileUploader = ({ uploadedFiles, setUploadedFiles, onSubmit, isAnal
             {uploadedFiles.length > 0 ? (
               <ul className="space-y-2 pr-2">
                 {uploadedFiles.map((file) => (
-                  <li key={file.id} className="flex items-center justify-between bg-charcoal/10 p-2 rounded-md hover:bg-charcoal/20 transition-colors group">
+                  <li key={file.id} className="flex items-center justify-between bg-charcoal/10 dark:bg-cream/10 p-2 rounded-md hover:bg-charcoal/20 transition-colors group">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <span className="text-xs bg-charcoal text-amber px-1.5 py-0.5 rounded font-bold">
+                      <span className="text-xs bg-charcoal text-amber dark:bg-cream dark:text-charcoal px-1.5 py-0.5 rounded font-bold">
                         {file.extension}
                       </span>
-                      <span className="text-charcoal text-sm truncate">
+                      <span className="text-charcoal dark:text-cream text-sm truncate">
                         {file.name}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-xs text-charcoal/70">
+                      <span className="text-xs text-charcoal/70 dark:text-cream/70">
                         {formatFileSize(file.size)}
                       </span>
                       <button 
-                        className="opacity-0 group-hover:opacity-100 text-charcoal hover:text-charcoal transition-all text-xs"
+                        className="opacity-0 group-hover:opacity-100 text-charcoal dark:text-cream hover:text-charcoal dark:hover:text-cream transition-all text-xs"
                         onClick={() => removeFile(file.id)}
                       >
                         ✕
@@ -194,7 +194,7 @@ export const FileUploader = ({ uploadedFiles, setUploadedFiles, onSubmit, isAnal
                 ))}
               </ul>
             ) : (
-              <div className="text-center py-3 text-charcoal/50 text-sm">
+              <div className="text-center py-3 text-charcoal/50 dark:text-cream text-sm">
                 No files uploaded yet
               </div>
             )}
@@ -209,13 +209,13 @@ export const FileUploader = ({ uploadedFiles, setUploadedFiles, onSubmit, isAnal
               disabled={isAnalyzing}
               className={`w-full py-3 px-6 rounded-lg font-bold text-lg transition-all duration-200 ${
                 isAnalyzing
-                  ? 'bg-charcoal/50 text-amber/50 cursor-not-allowed'
-                  : 'bg-charcoal text-amber hover:bg-charcoal/90 shadow-[0px_4px_0px_0px_#1a1c1e] hover:shadow-[0px_2px_0px_0px_#1a1c1e] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px]'
+                  ? 'bg-charcoal/50 dark:bg-cream/50 text-amber/50 dark:text-charcoal/50 cursor-not-allowed'
+                  : 'bg-charcoal dark:bg-cream text-amber dark:text-charcoal hover:bg-charcoal/90 dark:hover:bg-cream/90 shadow-[0px_4px_0px_0px_#1a1c1e] hover:shadow-[0px_2px_0px_0px_#1a1c1e] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px]'
               } border-2 border-charcoal`}
             >
               {isAnalyzing ? (
                 <div className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-amber/50 border-t-amber rounded-full animate-spin"></div>
+                  <div className="w-4 h-4 border-2 border-amber/50 dark:border-cream/50 border-t-amber dark:border-t-cream rounded-full animate-spin"></div>
                   <span>Analyzing Code...</span>
                 </div>
               ) : (
