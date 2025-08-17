@@ -19,6 +19,7 @@ import { HistoryItem } from "@/types";
 export default function History() {
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
   const [showClearConfirmation, setShowClearConfirmation] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<HistoryItem | null>(null);
   
   // Use custom hooks for history management
   const {
@@ -41,9 +42,21 @@ export default function History() {
     clearAllHistory(true); // Skip confirmation since we handled it
     setShowClearConfirmation(false);
   };
+  
+  // Functions for handling single item deletion with confirmation
+  const confirmDelete = (item: HistoryItem) => {
+    setItemToDelete(item);
+  };
+
+  const handleConfirmDelete = () => {
+    if (itemToDelete) {
+      handleDeleteItem(itemToDelete.id);
+      setItemToDelete(null);
+    }
+  };
 
   return (
-    <div className="bg-cream min-h-screen p-8">
+    <div className="bg-cream dark:bg-coal-500 min-h-screen p-8">
       
       <Header />
 
@@ -62,13 +75,13 @@ export default function History() {
         {/* Main Content */}
         <div className="w-full lg:w-3/4">
           {/* Header with Search */}
-          <div className="bg-coral border-4 border-charcoal rounded-lg shadow-[0px_4px_0px_0px_#27292b] mb-6">
-            <div className="bg-charcoal p-4 border-b-4 border-charcoal">
-              <h1 className="text-2xl font-bold text-coral flex items-center gap-2">
+          <div className="bg-coral border-4 border-charcoal dark:border-cream rounded-lg shadow-[0px_4px_0px_0px_#27292b] mb-6">
+            <div className="bg-charcoal dark:bg-coal-400 p-4 border-b-4 border-charcoal dark:border-cream rounded-t-sm">
+              <h1 className="text-2xl font-bold text-coral dark:text-cream flex items-center gap-2">
                 <HistoryIcon className="w-6 h-6" />
                 Review History
               </h1>
-              <p className="text-coral/80 text-sm mt-1">
+              <p className="text-coral/80 dark:text-cream text-sm mt-1">
                 View and manage your past code reviews
               </p>
             </div>
@@ -97,7 +110,7 @@ export default function History() {
                   key={item.id}
                   item={item}
                   onClick={() => setSelectedItem(item)}
-                  onDelete={handleDeleteItem}
+                  onDelete={() => confirmDelete(item)}
                 />
               ))
             ) : (
@@ -124,6 +137,19 @@ export default function History() {
         message="Are you sure you want to delete all your review history? This will permanently remove all stored reviews and cannot be undone. Your coding journey will start fresh!"
         confirmText="Yes, Clear All"
         cancelText="Keep History"
+        variant="danger"
+        icon="trash"
+      />
+
+      {/* Delete Single Item Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={itemToDelete !== null}
+        onClose={() => setItemToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Review"
+        message={`Are you sure you want to delete this review of "${itemToDelete?.filename || ''}"? This action cannot be undone.`}
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
         variant="danger"
         icon="trash"
       />
