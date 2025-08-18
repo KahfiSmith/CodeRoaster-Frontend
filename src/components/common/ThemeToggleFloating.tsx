@@ -1,8 +1,9 @@
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Sun, Moon } from "lucide-react";
 import { useThemeStore } from "@/store/theme";
 
-export const ThemeToggleFloating = () => {
+export const ThemeToggleFloating = React.memo(() => {
   const isDark = useThemeStore((s) => s.isDark);
   const toggle = useThemeStore((s) => s.toggle);
 
@@ -23,7 +24,7 @@ export const ThemeToggleFloating = () => {
       </Button>
     </div>
   );
-};
+});
 
 export default ThemeToggleFloating;
 

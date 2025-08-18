@@ -131,4 +131,4 @@ const HistoryCard: React.FC<HistoryCardProps> = ({ item, onClick, onDelete }) =>
   );
 };
 
-export default HistoryCard;
+export default React.memo(HistoryCard);

@@ -1,3 +1,4 @@
+import React from 'react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 
 interface ConfirmationModalProps {
@@ -12,7 +13,7 @@ interface ConfirmationModalProps {
   icon?: 'trash' | 'warning' | 'alert';
 }
 
-export const ConfirmationModal = ({
+export const ConfirmationModal = React.memo(({
   isOpen,
   onClose,
   onConfirm,
@@ -150,4 +151,4 @@ export const ConfirmationModal = ({
       </div>
     </div>
   );
-};
+});

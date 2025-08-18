@@ -15,7 +15,7 @@ interface HistoryFiltersProps {
   onClearAllHistory: () => void;
 }
 
-const HistoryFilters: React.FC<HistoryFiltersProps> = ({
+const HistoryFilters: React.FC<HistoryFiltersProps> = React.memo(({
   filter,
   setFilter,
   onRefreshHistory,
@@ -123,6 +123,6 @@ const HistoryFilters: React.FC<HistoryFiltersProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default HistoryFilters;
