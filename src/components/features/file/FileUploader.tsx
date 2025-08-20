@@ -3,6 +3,44 @@ import { CloudUpload } from "lucide-react";
 import { UploadedFile } from "@/types";
 import { formatFileSize } from "@/lib/helpers";
 
+// Size validation and preprocessing config (module-level constants)
+const MAX_FILE_SIZE = 50 * 1024; // 50KB
+const SUPPORTED_EXTENSIONS = ['.js', '.ts', '.jsx', '.tsx', '.dart', '.rb', '.swift', '.kt'];
+const SMALL_FILE_THRESHOLD = 10 * 1024; // 10KB - skip preprocessing for very small files
+
+// Naive extraction of key sections (functions, classes, exports)
+const extractKeyCodeSections = (content: string): string => {
+  try {
+    const sections: string[] = [];
+    // Keep imports for context (limit to avoid bloat)
+    const importLines = content.match(/^\s*import\s+[^;]+;\s*$/gmi) || [];
+    if (importLines.length) sections.push(importLines.slice(0, 50).join('\n'));
+
+    // Keep export statements
+    const exportLines = content.match(/^\s*export\s+(?:default\s+)?[^;]+;\s*$/gmi) || [];
+    if (exportLines.length) sections.push(exportLines.join('\n'));
+
+    // Function and class declarations (signatures)
+    const declLines = content.match(/^\s*(?:export\s+)?(?:async\s+)?(?:function|class|interface|type|enum)\b.*$/gmi) || [];
+    if (declLines.length) sections.push(declLines.join('\n'));
+
+    // Arrow function assignments (signatures)
+    const arrowFnLines = content.match(/^\s*(?:export\s+)?(?:const|let|var)\s+\w+\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/gmi) || [];
+    if (arrowFnLines.length) sections.push(arrowFnLines.join('\n'));
+
+    const extracted = sections.join('\n\n');
+    // Fallback: if extraction too small, include beginning of file for more context
+    if (extracted.trim().length < 200) {
+      const head = content.slice(0, Math.min(content.length, 10 * 1024));
+      return `${extracted}\n\n// --- Context Head ---\n${head}`.trim();
+    }
+    return extracted;
+  } catch {
+    // In case of any parsing issues, return original content
+    return content;
+  }
+};
+
 type FileUploaderProps = {
   uploadedFiles: UploadedFile[];
   setUploadedFiles: React.Dispatch<React.SetStateAction<UploadedFile[]>>;
@@ -13,46 +51,109 @@ type FileUploaderProps = {
 export const FileUploader = ({ uploadedFiles, setUploadedFiles, onSubmit, isAnalyzing = false }: FileUploaderProps) => {
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
-  const getFileExtension = (filename: string): string => {
+  const getFileExtension = useCallback((filename: string): string => {
     return filename.slice(((filename.lastIndexOf(".") - 1) >>> 0) + 1);
-  };
+  }, []);
 
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const preprocessFile = useCallback(async (file: File): Promise<{text: string, changed: boolean}> => {
+    const originalText = await file.text();
+    const ext = `.${getFileExtension(file.name).toLowerCase()}`;
+    
+    // Skip preprocessing for very small files - they're fast enough already
+    if (file.size <= SMALL_FILE_THRESHOLD) {
+      return {text: originalText, changed: false};
+    }
+    
+    // Only extract key sections from larger supported code files
+    if (SUPPORTED_EXTENSIONS.includes(ext) && file.size > MAX_FILE_SIZE) {
+      const processed = extractKeyCodeSections(originalText);
+      return {text: processed, changed: processed.length !== originalText.length};
+    }
+    
+    return {text: originalText, changed: false};
+  }, [getFileExtension]);
+
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const newFiles = Array.from(e.target.files).map((file) => {
+      // Process at most 5 files at once to prevent UI freeze
+      const maxFilesToProcess = 5;
+      const filesToProcess = Array.from(e.target.files).slice(0, maxFilesToProcess);
+      
+      if (e.target.files.length > maxFilesToProcess) {
+        alert(`Untuk performa optimal, hanya ${maxFilesToProcess} file pertama yang akan diproses.`);
+      }
+      
+      const prepared = await Promise.all(filesToProcess.map(async (file) => {
         const extension = getFileExtension(file.name);
+
+        let processedFile = file;
+        let preprocessed = false;
+        try {
+          const result = await preprocessFile(file);
+          if (result.changed) {
+            processedFile = new File([result.text], file.name, { type: 'text/plain' });
+            preprocessed = true;
+          }
+        } catch {
+          // If preprocessing fails, keep original file
+          processedFile = file;
+        }
+
         return {
           id: crypto.randomUUID(),
           name: file.name,
-          size: file.size,
+          size: processedFile.size,
           extension: `.${extension}`,
-          file: file,
-        };
-      });
-      
-      setUploadedFiles((prev) => [...prev, ...newFiles]);
-    }
-  }, [setUploadedFiles]);
+          file: processedFile,
+          preprocessed
+        } as UploadedFile;
+      }));
 
-  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+      setUploadedFiles((prev) => [...prev, ...prepared]);
+    }
+  }, [setUploadedFiles, preprocessFile, getFileExtension]);
+
+  const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const newFiles = Array.from(e.dataTransfer.files).map((file) => {
+      // Process at most 5 files at once to prevent UI freeze
+      const maxFilesToProcess = 5;
+      const filesToProcess = Array.from(e.dataTransfer.files).slice(0, maxFilesToProcess);
+      
+      if (e.dataTransfer.files.length > maxFilesToProcess) {
+        alert(`Untuk performa optimal, hanya ${maxFilesToProcess} file pertama yang akan diproses.`);
+      }
+      
+      const prepared = await Promise.all(filesToProcess.map(async (file) => {
         const extension = getFileExtension(file.name);
+
+        let processedFile = file;
+        let preprocessed = false;
+        try {
+          const result = await preprocessFile(file);
+          if (result.changed) {
+            processedFile = new File([result.text], file.name, { type: 'text/plain' });
+            preprocessed = true;
+          }
+        } catch {
+          processedFile = file;
+        }
+
         return {
           id: crypto.randomUUID(),
           name: file.name,
-          size: file.size,
+          size: processedFile.size,
           extension: `.${extension}`,
-          file: file,
-        };
-      });
-      
-      setUploadedFiles((prev) => [...prev, ...newFiles]);
+          file: processedFile,
+          preprocessed
+        } as UploadedFile;
+      }));
+
+      setUploadedFiles((prev) => [...prev, ...prepared]);
     }
-  }, [setUploadedFiles]);
+  }, [setUploadedFiles, preprocessFile, getFileExtension]);
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -82,8 +183,17 @@ export const FileUploader = ({ uploadedFiles, setUploadedFiles, onSubmit, isAnal
           <h3 className="text-xl font-bold text-charcoal dark:text-cream mb-2">
             Upload Your Code
           </h3>
-          <p className="text-charcoal/80 dark:text-cream/80 font-medium mb-4">
+          <p className="text-charcoal/80 dark:text-cream/80 font-medium mb-2">
             Drag & drop your file or click to browse
+          </p>
+          <p className="text-xs text-charcoal dark:text-cream mb-4">
+            <span className="inline-flex items-center">
+              <span className="mr-1">🌍</span> File &gt;30KB akan dikompresi
+            </span>
+            <span className="mx-2">•</span>
+            <span className="inline-flex items-center">
+              <span className="mr-1">🌏</span> File &gt;50KB akan dipotong
+            </span>
           </p>
           <div className="flex flex-wrap justify-center gap-2 mb-6">
             {[
@@ -97,6 +207,10 @@ export const FileUploader = ({ uploadedFiles, setUploadedFiles, onSubmit, isAnal
               ".go",
               ".rs",
               ".php",
+              ".dart",
+              ".rb",
+              ".swift",
+              ".kt",
             ].map((format) => (
               <span
                 key={format}
@@ -142,7 +256,7 @@ export const FileUploader = ({ uploadedFiles, setUploadedFiles, onSubmit, isAnal
             <input
               type="file"
               className="hidden"
-              accept=".js,.jsx,.ts,.tsx,.py,.java,.cpp,.c,.go,.rs,.php,.rb,.swift,.kt,.scala,.sh,.html,.css,.json,.xml,.yaml,.yml"
+              accept=".js,.jsx,.ts,.tsx,.py,.java,.cpp,.c,.go,.rs,.php,.rb,.swift,.kt,.dart,.scala,.sh,.html,.css,.json,.xml,.yaml,.yml"
               onChange={handleFileChange}
               multiple
             />
@@ -180,8 +294,15 @@ export const FileUploader = ({ uploadedFiles, setUploadedFiles, onSubmit, isAnal
                       </span>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-xs text-charcoal/70 dark:text-cream/70">
-                        {formatFileSize(file.size)}
+                      <span 
+                        className="text-xs text-charcoal/70 dark:text-cream/70 group relative cursor-help"
+                        title={file.size > 50 * 1024 ? 
+                          "File ini melebihi batas ukuran optimal (80KB) dan akan dipotong/dikompresi saat diproses" : 
+                          file.size > 30 * 1024 ? 
+                          "File ini akan dikompresi otomatis untuk mengoptimalkan proses review" : 
+                          ""}
+                      >
+                        {formatFileSize(file.size, { showIndicator: true })}
                       </span>
                       <button 
                         className="opacity-0 group-hover:opacity-100 text-charcoal dark:text-cream hover:text-charcoal dark:hover:text-cream transition-all text-xs"
