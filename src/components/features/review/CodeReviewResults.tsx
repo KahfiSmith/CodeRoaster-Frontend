@@ -549,8 +549,15 @@ const CodeReviewResultsComponent = forwardRef<
 
           // codeToAnalyze is already built during the loop
 
-          // Detect language from first file extension
-          const language =
+          // Detect language from file extensions - use most common or first file extension
+          const languageMap: Record<string, number> = {};
+          uploadedFiles.forEach(file => {
+            const ext = file.extension?.replace(".", "") || "javascript";
+            languageMap[ext] = (languageMap[ext] || 0) + 1;
+          });
+          
+          // Find the most common language or use the first file's language
+          const language = Object.entries(languageMap).sort((a, b) => b[1] - a[1])[0]?.[0] || 
             uploadedFiles[0]?.extension?.replace(".", "") || "javascript";
 
           // Build cache key from shorter hash input to improve performance
@@ -765,7 +772,7 @@ function checkBestPractices() {
       // Base tips
       const baseTips = {
         sarcastic:
-          "💡 Pro tip: Makin questionable kode lu, makin seru review-nya! Sekarang dengan roasting yang lebih PANJANG dan DETAIL! Upload apa aja - gue ga judge kok... banyak 🤭",
+          "💡 Pro tip: Makin questionable kode lu, makin seru review-nya! Sekarang dengan roasting yang lebih PANJANG dan DETAIL! Upload apa aja - gue ga judge kok 🤭",
         brutal:
           "⚠️ Peringatan: Reviewer ini GA ADA AMPUN dengan analisis yang COMPREHENSIVE dan BRUTAL! Upload kode cuma kalo lu sanggup nerima KEBENARAN DETAIL yang panjang lebar! 💀",
         encouraging:
@@ -778,12 +785,8 @@ function checkBestPractices() {
           "📚 Comprehensive: Evaluasi mendalam terhadap design patterns, quality metrics, dan industry standards dengan rekomendasi yang lebih actionable.",
       };
 
-      // Add file size optimization tip to all review types
-      const fileSizeTip = `\n\n📦 Optimized: File size limit ${Math.round(
-        FILE_SIZE_LIMIT / 1024
-      )}KB per file with auto-compression untuk kecepatan dan kualitas review yang lebih baik.`;
-
-      return baseTips[type] + fileSizeTip || baseTips.sarcastic + fileSizeTip;
+      // Return the base tip without any additional file size info
+      return baseTips[type] || baseTips.sarcastic;
     };
 
     return (
@@ -840,19 +843,19 @@ function checkBestPractices() {
                 {/* Review Score */}
                 <div className="bg-charcoal p-3 rounded-lg">
                   <div className="flex items-center justify-between text-sky">
-                    <span className="font-bold">Code Quality Score</span>
+                    <span className="font-bold">Skor Kualitas Kode</span>
                     <span className="text-2xl font-bold">
                       {Math.round((reviewResults.score / 100) * 10)}/10
                     </span>
                   </div>
                   <div className="text-xs text-sky/70 mt-1">
-                    {reviewResults.summary.totalIssues} issues found (
-                    {reviewResults.summary.critical} critical)
+                    {reviewResults.summary.totalIssues} masalah ditemukan (
+                    {reviewResults.summary.critical} kritis)
                   </div>
                   <div className="text-xs text-sky/70 mt-1">
                     {uploadedFiles.length > 1 ? 
-                      `${uploadedFiles.length} files analyzed - results grouped by file` : 
-                      "1 file analyzed"}
+                      `${uploadedFiles.length} file dianalisis - hasil dikelompokkan berdasarkan file` : 
+                      "1 file dianalisis"}
                   </div>
                 </div>
 
@@ -862,7 +865,7 @@ function checkBestPractices() {
                     {reviewResults.metadata.overallAssessment && (
                       <div className="bg-sky/20 border-2 border-charcoal rounded-lg p-3">
                         <h3 className="font-bold text-charcoal text-sm mb-2">
-                          📊 Overall Assessment
+                          📊 Penilaian Keseluruhan
                         </h3>
                         <p className="text-charcoal text-sm">
                           {reviewResults.metadata.overallAssessment}
@@ -873,7 +876,7 @@ function checkBestPractices() {
                     {reviewResults.metadata.overallSecurityAssessment && (
                       <div className="bg-coral/20 border-2 border-charcoal rounded-lg p-3">
                         <h3 className="font-bold text-charcoal text-sm mb-2">
-                          🛡️ Security Assessment
+                          🛡️ Penilaian Keamanan
                         </h3>
                         <p className="text-charcoal text-sm">
                           {reviewResults.metadata.overallSecurityAssessment}
@@ -884,7 +887,7 @@ function checkBestPractices() {
                     {reviewResults.metadata.overallRoast && (
                       <div className="bg-coral/30 border-2 border-charcoal rounded-lg p-3">
                         <h3 className="font-bold text-charcoal text-sm mb-2">
-                          🔥 Overall Roast
+                          🔥 Roasting Keseluruhan
                         </h3>
                         <p className="text-charcoal text-sm">
                           {reviewResults.metadata.overallRoast}
@@ -895,7 +898,7 @@ function checkBestPractices() {
                     {reviewResults.metadata.brutalAssessment && (
                       <div className="bg-red-100 border-2 border-charcoal rounded-lg p-3">
                         <h3 className="font-bold text-charcoal text-sm mb-2">
-                          💀 Brutal Truth
+                          💀 Kebenaran Brutal
                         </h3>
                         <p className="text-charcoal text-sm">
                           {reviewResults.metadata.brutalAssessment}
@@ -906,7 +909,7 @@ function checkBestPractices() {
                     {reviewResults.metadata.positiveAssessment && (
                       <div className="bg-green-100 border-2 border-charcoal rounded-lg p-3">
                         <h3 className="font-bold text-charcoal text-sm mb-2">
-                          🌟 Positive Assessment
+                          🌟 Penilaian Positif
                         </h3>
                         <p className="text-charcoal text-sm">
                           {reviewResults.metadata.positiveAssessment}
@@ -918,18 +921,76 @@ function checkBestPractices() {
 
                 {/* File-grouped suggestions */}
                 <div className="space-y-6">
+
+
                   {/* Group suggestions by file */}
                   {(() => {
+                    // Check if suggestions exist and is an array
+                    if (!reviewResults.suggestions || !Array.isArray(reviewResults.suggestions) || reviewResults.suggestions.length === 0) {
+                      // Create default fallback content when no suggestions are available
+                      return (
+                        <div className="space-y-4">
+                          <div className="bg-amber/20 p-4 rounded-lg">
+                            <h3 className="font-bold mb-2">Tidak Ada Saran Detail Tersedia</h3>
+                            <p>Review tidak mengembalikan saran spesifik, tapi berikut adalah penilaian umum:</p>
+                            
+                            <div className="mt-4 p-3 bg-cream/50 border-2 border-charcoal rounded-lg">
+                              <h4 className="font-bold text-charcoal text-sm">Penilaian Kode Umum</h4>
+                              <p className="mt-2 text-sm">
+                                {reviewResults.metadata?.overallAssessment || 
+                                 reviewResults.metadata?.positiveAssessment ||
+                                 "Kode Anda tampaknya berfungsi dengan baik tanpa masalah besar yang terdeteksi."}
+                              </p>
+                              
+                              <div className="mt-3 text-xs">
+                                <p><strong>Rekomendasi:</strong></p>
+                                <ul className="list-disc ml-5 mt-1 space-y-1">
+                                  <li>Pertimbangkan untuk menambahkan dokumentasi yang lebih komprehensif</li>
+                                  <li>Tinjau kode untuk optimasi performa potensial</li>
+                                  <li>Pastikan gaya kode konsisten di seluruh proyek</li>
+                                  {reviewResults.metadata?.recommendations && Array.isArray(reviewResults.metadata.recommendations) && 
+                                    reviewResults.metadata.recommendations.map((rec, i) => (
+                                      <li key={i}>{rec}</li>
+                                    ))
+                                  }
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    
                     // Group suggestions by fileName or create a default group
                     const fileGroups: Record<string, ReviewSuggestion[]> = {};
                     
+                    // Add fileName property if missing and group by it
                     reviewResults.suggestions.forEach(suggestion => {
-                      const fileName = suggestion.fileName || "General";
-                      if (!fileGroups[fileName]) {
-                        fileGroups[fileName] = [];
+                      // Ensure fileName exists and is a string
+                      if (!suggestion.fileName || typeof suggestion.fileName !== 'string') {
+                        // Try to extract fileName from title if it contains brackets like [filename.js]
+                        const fileNameMatch = suggestion.title?.match(/\[(.*?)\]/);
+                        if (fileNameMatch && fileNameMatch[1]) {
+                          suggestion.fileName = fileNameMatch[1];
+                        } else {
+                          // Default to General if no fileName can be extracted
+                          suggestion.fileName = "General";
+                        }
                       }
-                      fileGroups[fileName].push(suggestion);
+                      
+                      // Create group if it doesn't exist
+                      if (!fileGroups[suggestion.fileName]) {
+                        fileGroups[suggestion.fileName] = [];
+                      }
+                      
+                      // Add to group
+                      fileGroups[suggestion.fileName].push(suggestion);
                     });
+                    
+                    // If no groups were created, create a default group
+                    if (Object.keys(fileGroups).length === 0) {
+                      fileGroups["General"] = reviewResults.suggestions;
+                    }
                     
                     // Convert groups to JSX
                     return Object.entries(fileGroups).map(([fileName, fileSuggestions]) => (
@@ -949,7 +1010,7 @@ function checkBestPractices() {
                             <span className="font-bold text-amber dark:text-cream underline">{fileName}</span>
                           </h3>
                           <span className="text-xs bg-amber/80 text-charcoal px-1.5 py-0.5 rounded">
-                            {fileSuggestions.length} {fileSuggestions.length === 1 ? 'issue' : 'issues'}
+                            {fileSuggestions.length} {fileSuggestions.length === 1 ? 'masalah' : 'masalah'}
                           </span>
                         </div>
                         
@@ -996,28 +1057,28 @@ function checkBestPractices() {
                       <div className="space-y-1 text-xs">
                         {suggestion.impact && (
                           <p className="text-charcoal">
-                            <strong>Impact:</strong> {suggestion.impact}
+                            <strong>Dampak:</strong> {suggestion.impact}
                           </p>
                         )}
                         {suggestion.riskLevel && (
                           <p className="text-charcoal">
-                            <strong>Risk Level:</strong> {suggestion.riskLevel}
+                            <strong>Tingkat Risiko:</strong> {suggestion.riskLevel}
                           </p>
                         )}
                         {suggestion.attackVector && (
                           <p className="text-charcoal">
-                            <strong>Attack Vector:</strong>{" "}
+                            <strong>Vektor Serangan:</strong>{" "}
                             {suggestion.attackVector}
                           </p>
                         )}
                         {suggestion.benefits && (
                           <p className="text-charcoal">
-                            <strong>Benefits:</strong> {suggestion.benefits}
+                            <strong>Manfaat:</strong> {suggestion.benefits}
                           </p>
                         )}
                         {suggestion.roastLevel && (
                           <p className="text-charcoal">
-                            <strong>🔥 Roast Level:</strong>{" "}
+                            <strong>🔥 Tingkat Roasting:</strong>{" "}
                             {suggestion.roastLevel}
                           </p>
                         )}
@@ -1029,19 +1090,19 @@ function checkBestPractices() {
                         )}
                         {suggestion.consequencesIfIgnored && (
                           <p className="text-charcoal">
-                            <strong>⚠️ Consequences:</strong>{" "}
+                            <strong>⚠️ Konsekuensi:</strong>{" "}
                             {suggestion.consequencesIfIgnored}
                           </p>
                         )}
                         {suggestion.learningOpportunity && (
                           <p className="text-charcoal">
-                            <strong>📚 Learning:</strong>{" "}
+                            <strong>📚 Kesempatan Belajar:</strong>{" "}
                             {suggestion.learningOpportunity}
                           </p>
                         )}
                         {suggestion.confidenceBooster && (
                           <p className="text-charcoal">
-                            <strong>✨ You Got This:</strong>{" "}
+                            <strong>✨ Kamu Bisa:</strong>{" "}
                             {suggestion.confidenceBooster}
                           </p>
                         )}
@@ -1049,14 +1110,14 @@ function checkBestPractices() {
 
                       {suggestion.codeSnippet.original && (
                         <div className="bg-charcoal rounded p-2 text-xs mt-2">
-                          <div className="text-coral mb-1">❌ Before:</div>
+                          <div className="text-coral mb-1">❌ Sebelum:</div>
                           <pre className="text-sky overflow-x-auto">
                             {suggestion.codeSnippet.original}
                           </pre>
                           {suggestion.codeSnippet.improved && (
                             <>
                               <div className="text-green-400 mt-2 mb-1">
-                                ✅ After:
+                                ✅ Sesudah:
                               </div>
                               <pre className="text-sky overflow-x-auto">
                                 {suggestion.codeSnippet.improved}

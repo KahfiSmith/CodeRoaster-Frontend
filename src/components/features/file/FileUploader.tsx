@@ -188,11 +188,11 @@ export const FileUploader = ({ uploadedFiles, setUploadedFiles, onSubmit, isAnal
           </p>
           <p className="text-xs text-charcoal dark:text-cream mb-4">
             <span className="inline-flex items-center">
-              <span className="mr-1">🌍</span> File &gt;30KB akan dikompresi
+              <span className="mr-1">🌍</span> File &gt;30KB will be compressed
             </span>
             <span className="mx-2">•</span>
             <span className="inline-flex items-center">
-              <span className="mr-1">🌏</span> File &gt;50KB akan dipotong
+              <span className="mr-1">🌏</span> File &gt;50KB will be truncated
             </span>
           </p>
           <div className="flex flex-wrap justify-center gap-2 mb-6">
