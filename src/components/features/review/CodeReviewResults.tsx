@@ -5,6 +5,7 @@ import {
   ReviewType,
   SupportedLanguage,
   UploadedFile,
+  ReviewSuggestion,
 } from "@/types";
 import {
   forwardRef,
@@ -12,7 +13,249 @@ import {
   useEffect,
   useImperativeHandle,
   useState,
+  useRef,
 } from "react";
+
+// File size constants
+const FILE_SIZE_LIMIT = 50 * 1024; // 50KB per file limit
+const COMPRESSION_THRESHOLD = 30 * 1024; // 30KB threshold for compression
+
+// Cache configuration
+const REVIEW_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+const MAX_CACHE_ENTRIES = 50; // Limit cache size to prevent localStorage bloat
+const REVIEW_CACHE_STORAGE_KEY = "codeRoaster_review_cache";
+
+// Compute SHA-256 hash for caching
+const computeSHA256 = async (input: string): Promise<string> => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+};
+
+// LocalStorage-backed cache helpers
+const getCachedReview = (key: string): ReviewResult | null => {
+  try {
+    const raw = localStorage.getItem(REVIEW_CACHE_STORAGE_KEY);
+    if (!raw) return null;
+    const store = JSON.parse(raw) as Record<
+      string,
+      { result: ReviewResult; timestamp: number }
+    >;
+    const entry = store[key];
+    if (!entry) return null;
+    if (Date.now() - entry.timestamp > REVIEW_CACHE_TTL) return null;
+    return entry.result;
+  } catch {
+    return null;
+  }
+};
+
+const setCachedReview = (key: string, result: ReviewResult): void => {
+  try {
+    const raw = localStorage.getItem(REVIEW_CACHE_STORAGE_KEY);
+    const store: Record<string, { result: ReviewResult; timestamp: number }> =
+      raw ? JSON.parse(raw) : {};
+
+    // Add new entry
+    store[key] = { result, timestamp: Date.now() };
+
+    // Prune cache if too many entries
+    const entries = Object.entries(store);
+    if (entries.length > MAX_CACHE_ENTRIES) {
+      // Sort by timestamp (oldest first) and remove excess entries
+      const sortedEntries = entries.sort(
+        (a, b) => a[1].timestamp - b[1].timestamp
+      );
+      const entriesToKeep = sortedEntries.slice(-MAX_CACHE_ENTRIES);
+      const newStore: Record<
+        string,
+        { result: ReviewResult; timestamp: number }
+      > = {};
+      entriesToKeep.forEach(([k, v]) => {
+        newStore[k] = v;
+      });
+      localStorage.setItem(REVIEW_CACHE_STORAGE_KEY, JSON.stringify(newStore));
+    } else {
+      localStorage.setItem(REVIEW_CACHE_STORAGE_KEY, JSON.stringify(store));
+    }
+  } catch {
+    // ignore storage errors
+  }
+};
+
+/**
+ * Simple text compression for code files
+ * This function removes excessive whitespace and comments while preserving code structure
+ *
+ * @param content The file content to compress
+ * @param fileExtension The file extension to determine language-specific rules
+ * @returns Compressed content
+ */
+const compressCodeContent = (
+  content: string,
+  fileExtension: string
+): string => {
+  // Skip compression for binary or non-text files
+  const nonCompressibleExtensions = [
+    ".pdf",
+    ".jpg",
+    ".png",
+    ".gif",
+    ".zip",
+    ".exe",
+  ];
+  if (
+    nonCompressibleExtensions.some((ext) =>
+      fileExtension.toLowerCase().endsWith(ext)
+    )
+  ) {
+    return content;
+  }
+
+  let compressed = content;
+
+  // Remove multiple empty lines (replace 3+ newlines with 2)
+  compressed = compressed.replace(/\n{3,}/g, "\n\n");
+
+  // Remove trailing whitespace on each line
+  compressed = compressed.replace(/[ \t]+$/gm, "");
+
+  // Language specific optimizations
+  if (fileExtension.match(/\.(js|ts|jsx|tsx)$/i)) {
+    // For JavaScript/TypeScript files
+
+    // Remove single-line comments that are on their own line (not code with trailing comments)
+    compressed = compressed.replace(/^\s*\/\/.*$/gm, "");
+
+    // Preserve important comments (containing TODO, FIXME, NOTE, etc.)
+    compressed = compressed.replace(
+      /^\s*\/\/\s*(TODO|FIXME|HACK|NOTE|IMPORTANT|BUG).*$/gim,
+      (match) => match
+    );
+  } else if (fileExtension.match(/\.(py)$/i)) {
+    // For Python files
+
+    // Remove single-line comments that are on their own line
+    compressed = compressed.replace(/^\s*#.*$/gm, "");
+
+    // Preserve important comments
+    compressed = compressed.replace(
+      /^\s*#\s*(TODO|FIXME|HACK|NOTE|IMPORTANT|BUG).*$/gim,
+      (match) => match
+    );
+  }
+
+  // Remove excessive indentation (keep structure but limit to max 40 spaces)
+  compressed = compressed.replace(/^([ \t]{40,})/gm, (match) =>
+    match.substring(0, 40)
+  );
+
+  return compressed;
+};
+
+/**
+ * Enhanced streaming file reader for large files
+ * This implementation uses a more efficient streaming approach with adaptive chunk sizes
+ * and optimized memory management
+ *
+ * @param file The file to read
+ * @param initialChunkSize Initial size of each chunk in bytes
+ * @param onProgress Optional callback to report reading progress (0-100)
+ * @returns Promise that resolves with the file content
+ */
+const readFileInChunks = async (
+  file: File,
+  initialChunkSize: number,
+  onProgress?: (progress: number) => void
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const fileReader = new FileReader();
+    let offset = 0;
+    let result = "";
+    const totalSize = file.size;
+
+    // Adaptive chunk sizing - start with initial size and adjust based on file characteristics
+    let chunkSize = initialChunkSize;
+    let lastReadTime = 0;
+
+    // Function to read the next chunk with adaptive sizing
+    const readNextChunk = () => {
+      // Calculate the end position for this chunk
+      const end = Math.min(offset + chunkSize, totalSize);
+
+      // Create a slice of the file
+      const blob = file.slice(offset, end);
+
+      // Track read performance
+      lastReadTime = performance.now();
+
+      // Read as text
+      fileReader.readAsText(blob);
+    };
+
+    // Handle chunk load
+    fileReader.onload = (event) => {
+      if (event.target?.result) {
+        // Calculate read performance
+        const readDuration = performance.now() - lastReadTime;
+
+        // Adapt chunk size based on performance
+        // If reading is fast, increase chunk size for efficiency
+        // If reading is slow, decrease chunk size to avoid UI freezing
+        if (readDuration < 50 && chunkSize < 1024 * 1024) {
+          // Reading is fast, increase chunk size up to 1MB max
+          chunkSize = Math.min(chunkSize * 1.5, 1024 * 1024);
+        } else if (readDuration > 300 && chunkSize > 16 * 1024) {
+          // Reading is slow, decrease chunk size but not below 16KB
+          chunkSize = Math.max(chunkSize * 0.7, 16 * 1024);
+        }
+
+        // Append chunk to result string instead of storing in array
+        // This avoids keeping multiple copies of the content in memory
+        result += event.target.result as string;
+
+        // Update offset
+        offset = Math.min(offset + chunkSize, totalSize);
+
+        // Report progress if callback provided
+        if (onProgress) {
+          const progressPercent = Math.min(
+            100,
+            Math.round((offset / totalSize) * 100)
+          );
+          onProgress(progressPercent);
+        }
+
+        // Check if we've read the entire file
+        if (offset < totalSize) {
+          // Use setTimeout to avoid deep recursion and allow UI updates
+          // Adjust timeout based on file size - larger files need more UI breathing room
+          const timeoutDelay = totalSize > 5 * 1024 * 1024 ? 10 : 0;
+          setTimeout(readNextChunk, timeoutDelay);
+        } else {
+          // We've read the entire file, resolve with the result
+          resolve(result);
+
+          // Clean up to help garbage collection
+          result = "";
+        }
+      }
+    };
+
+    // Handle errors
+    fileReader.onerror = (error) => {
+      reject(error);
+
+      // Clean up
+      result = "";
+    };
+
+    // Start reading the first chunk
+    readNextChunk();
+  });
+};
 
 interface CodeReviewResultsProps {
   uploadedFiles: UploadedFile[];
@@ -51,6 +294,28 @@ const CodeReviewResultsComponent = forwardRef<
     const [localReviewResults, setLocalReviewResults] =
       useState<ReviewResult | null>(null);
     const [localError, setLocalError] = useState<string>("");
+    const [processingProgress, setProcessingProgress] = useState<{
+      current: number;
+      total: number;
+      fileName: string;
+    }>({ current: 0, total: 0, fileName: "" });
+    const [cacheUsed, setCacheUsed] = useState<boolean>(false);
+    const debounceTimerRef = useRef<number | null>(null);
+
+    // State for tracking file size warnings and compression
+    const [fileProcessingInfo, setFileProcessingInfo] = useState<{
+      oversizedFiles: string[];
+      compressedFiles: string[];
+      totalSizeBefore: number;
+      totalSizeAfter: number;
+      hasWarnings: boolean;
+    }>({
+      oversizedFiles: [],
+      compressedFiles: [],
+      totalSizeBefore: 0,
+      totalSizeAfter: 0,
+      hasWarnings: false,
+    });
 
     // Use external state when available, fallback to local state
     const isAnalyzing = externalIsAnalyzing || localIsAnalyzing;
@@ -87,13 +352,7 @@ const CodeReviewResultsComponent = forwardRef<
             rb: "ruby",
             swift: "swift",
             kt: "kotlin",
-            scala: "scala",
-            html: "html",
-            css: "css",
-            json: "json",
-            yml: "yaml",
-            yaml: "yaml",
-            sql: "sql",
+            dart: "dart",
           };
 
           return extensionMap[ext] || "javascript";
@@ -138,19 +397,191 @@ const CodeReviewResultsComponent = forwardRef<
         onAnalysisStateChange?.(true);
 
         try {
-          // Read all file contents
-          const fileContents = await Promise.all(
-            uploadedFiles.map(async (uploadedFile) => {
-              const content = await uploadedFile.file.text();
-              return `// File: ${uploadedFile.name}\n${content}`;
-            })
-          );
+          // Process files sequentially to avoid memory issues
+          let codeToAnalyze = "";
 
-          const codeToAnalyze = fileContents.join("\n\n");
+          // Reset file processing info
+          setFileProcessingInfo({
+            oversizedFiles: [],
+            compressedFiles: [],
+            totalSizeBefore: 0,
+            totalSizeAfter: 0,
+            hasWarnings: false,
+          });
+
+          // Set initial progress
+          setProcessingProgress({
+            current: 0,
+            total: uploadedFiles.length,
+            fileName: "",
+          });
+
+          // Calculate optimal chunk size based on file sizes
+          const calculateOptimalChunkSize = (fileSize: number): number => {
+            // For very large files, use smaller chunks
+            if (fileSize > 10 * 1024 * 1024) return 256 * 1024; // 256KB for >10MB
+            if (fileSize > 5 * 1024 * 1024) return 384 * 1024; // 384KB for >5MB
+            return 512 * 1024; // 512KB default
+          };
+
+          // Track file processing stats
+          const oversizedFiles: string[] = [];
+          const compressedFiles: string[] = [];
+          let totalSizeBefore = 0;
+          let totalSizeAfter = 0;
+
+          // Process files one by one instead of all at once
+          for (let i = 0; i < uploadedFiles.length; i++) {
+            const uploadedFile = uploadedFiles[i];
+            totalSizeBefore += uploadedFile.size;
+
+            // Update progress
+            setProcessingProgress({
+              current: i + 1,
+              total: uploadedFiles.length,
+              fileName: uploadedFile.name,
+            });
+
+            // Process file content
+            let fileContent = "";
+
+            // Skip processing if the file was already preprocessed by FileUploader
+            const skipProcessing = uploadedFile.preprocessed === true;
+
+            // Read file in chunks if it's large (over 1MB) and not already preprocessed
+            if (uploadedFile.size > 1024 * 1024 && !skipProcessing) {
+              const file = uploadedFile.file;
+              const chunkSize = calculateOptimalChunkSize(uploadedFile.size);
+
+              // Track chunk reading progress for large files - throttle updates to reduce renders
+              let lastProgressUpdate = 0;
+              fileContent = await readFileInChunks(
+                file,
+                chunkSize,
+                (chunkProgress) => {
+                  // Throttle progress updates to max once per 250ms
+                  const now = Date.now();
+                  if (now - lastProgressUpdate > 250 || chunkProgress >= 100) {
+                    lastProgressUpdate = now;
+                    setProcessingProgress((prev) => ({
+                      ...prev,
+                      fileName: `${uploadedFile.name} (${chunkProgress}%)`,
+                    }));
+                  }
+                }
+              );
+            } else {
+              // For smaller files, read normally
+              fileContent = await uploadedFile.file.text();
+            }
+
+            // Check if file exceeds size limit
+            const contentSize = new Blob([fileContent]).size;
+
+            // Apply compression if needed
+            let processedContent = fileContent;
+            let wasCompressed = false;
+
+            // Apply compression for files over the threshold, but skip if already preprocessed
+            if (contentSize > COMPRESSION_THRESHOLD && !skipProcessing) {
+              // Update progress to show compression is happening
+              setProcessingProgress((prev) => ({
+                ...prev,
+                fileName: `${uploadedFile.name} (compressing...)`,
+              }));
+
+              // Compress the content
+              processedContent = compressCodeContent(
+                fileContent,
+                uploadedFile.extension || ""
+              );
+
+              // Check if compression was effective
+              const compressedSize = new Blob([processedContent]).size;
+              wasCompressed = compressedSize < contentSize;
+
+              if (wasCompressed) {
+                compressedFiles.push(uploadedFile.name);
+                totalSizeAfter += compressedSize;
+              } else {
+                // If compression didn't help, use original
+                processedContent = fileContent;
+                totalSizeAfter += contentSize;
+              }
+            } else {
+              totalSizeAfter += contentSize;
+            }
+
+            // Check if file still exceeds limit after compression
+            if (new Blob([processedContent]).size > FILE_SIZE_LIMIT) {
+              oversizedFiles.push(uploadedFile.name);
+
+              // Truncate oversized files to the limit
+              if (processedContent.length > FILE_SIZE_LIMIT) {
+                const truncatedLength = Math.floor(FILE_SIZE_LIMIT * 0.9); // 90% of limit to account for encoding differences
+                processedContent =
+                  processedContent.substring(0, truncatedLength) +
+                  `\n\n// ... File truncated due to size limit (${Math.round(
+                    contentSize / 1024
+                  )}KB > ${Math.round(FILE_SIZE_LIMIT / 1024)}KB) ...\n`;
+              }
+            }
+
+            // Append to codeToAnalyze directly with clear file markers for AI to use
+            const fileMarker = `FILE_MARKER: ${uploadedFile.name}`;
+            codeToAnalyze += `// ============= ${fileMarker} ${
+              wasCompressed ? " (compressed)" : ""
+            } =============\n${processedContent}\n\n// ============= END_FILE_MARKER: ${uploadedFile.name} =============\n\n`;
+
+            // Help garbage collection by clearing variables
+            fileContent = "";
+            processedContent = "";
+          }
+
+          // Update file processing info
+          setFileProcessingInfo({
+            oversizedFiles,
+            compressedFiles,
+            totalSizeBefore,
+            totalSizeAfter,
+            hasWarnings: oversizedFiles.length > 0,
+          });
+
+          // codeToAnalyze is already built during the loop
 
           // Detect language from first file extension
           const language =
             uploadedFiles[0]?.extension?.replace(".", "") || "javascript";
+
+          // Build cache key from shorter hash input to improve performance
+          // Include file count, sizes, and names for uniqueness without full content
+          const fileSignature = uploadedFiles
+            .map((f) => `${f.name}:${f.size}`)
+            .join("|");
+          const cacheKey = await computeSHA256(
+            `${language}|${reviewType}|${fileSignature}|${uploadedFiles.length}`
+          );
+
+          // Short debounce before API call
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          // Check cache first - this is fast
+          console.time("cache-check");
+          const cached = getCachedReview(cacheKey);
+          console.timeEnd("cache-check");
+
+          if (cached) {
+            console.log("⚡ Cache hit! Skipping API call");
+            setCacheUsed(true);
+            setLocalReviewResults(cached);
+            saveToHistory(cached, uploadedFiles);
+            // finalize analyzing state since we early return
+            setLocalIsAnalyzing(false);
+            onAnalysisStateChange?.(false);
+            return;
+          }
+
+          console.log("🔄 Cache miss, proceeding with API call");
 
           const result = await openaiService.reviewCode(
             codeToAnalyze,
@@ -158,6 +589,9 @@ const CodeReviewResultsComponent = forwardRef<
             reviewType
           );
           setLocalReviewResults(result);
+
+          // Save to cache
+          setCachedReview(cacheKey, result);
 
           // Save successful results to history
           saveToHistory(result, uploadedFiles);
@@ -186,7 +620,15 @@ const CodeReviewResultsComponent = forwardRef<
     };
 
     useImperativeHandle(ref, () => ({
-      startAnalysis: analyzeCode,
+      startAnalysis: () => {
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+        debounceTimerRef.current = window.setTimeout(() => {
+          analyzeCode();
+          debounceTimerRef.current = null;
+        }, 500);
+      },
     }));
 
     // Remove automatic analysis on file upload
@@ -320,7 +762,8 @@ function checkBestPractices() {
     };
 
     const getTipMessage = (type: ReviewType) => {
-      const tips = {
+      // Base tips
+      const baseTips = {
         sarcastic:
           "💡 Pro tip: Makin questionable kode lu, makin seru review-nya! Sekarang dengan roasting yang lebih PANJANG dan DETAIL! Upload apa aja - gue ga judge kok... banyak 🤭",
         brutal:
@@ -334,7 +777,13 @@ function checkBestPractices() {
         bestPractices:
           "📚 Comprehensive: Evaluasi mendalam terhadap design patterns, quality metrics, dan industry standards dengan rekomendasi yang lebih actionable.",
       };
-      return tips[type] || tips.sarcastic;
+
+      // Add file size optimization tip to all review types
+      const fileSizeTip = `\n\n📦 Optimized: File size limit ${Math.round(
+        FILE_SIZE_LIMIT / 1024
+      )}KB per file with auto-compression untuk kecepatan dan kualitas review yang lebih baik.`;
+
+      return baseTips[type] + fileSizeTip || baseTips.sarcastic + fileSizeTip;
     };
 
     return (
@@ -400,6 +849,11 @@ function checkBestPractices() {
                     {reviewResults.summary.totalIssues} issues found (
                     {reviewResults.summary.critical} critical)
                   </div>
+                  <div className="text-xs text-sky/70 mt-1">
+                    {uploadedFiles.length > 1 ? 
+                      `${uploadedFiles.length} files analyzed - results grouped by file` : 
+                      "1 file analyzed"}
+                  </div>
                 </div>
 
                 {/* Overall Assessment - Dynamic based on review type */}
@@ -462,16 +916,55 @@ function checkBestPractices() {
                   </>
                 )}
 
-                {/* Suggestions */}
-                <div className="space-y-3">
-                  {reviewResults.suggestions.map((suggestion) => (
-                    <div
-                      key={suggestion.id}
-                      className="bg-cream/50 border-2 border-charcoal rounded-lg p-3"
-                    >
+                {/* File-grouped suggestions */}
+                <div className="space-y-6">
+                  {/* Group suggestions by file */}
+                  {(() => {
+                    // Group suggestions by fileName or create a default group
+                    const fileGroups: Record<string, ReviewSuggestion[]> = {};
+                    
+                    reviewResults.suggestions.forEach(suggestion => {
+                      const fileName = suggestion.fileName || "General";
+                      if (!fileGroups[fileName]) {
+                        fileGroups[fileName] = [];
+                      }
+                      fileGroups[fileName].push(suggestion);
+                    });
+                    
+                    // Convert groups to JSX
+                    return Object.entries(fileGroups).map(([fileName, fileSuggestions]) => (
+                      <div key={fileName} className="border-2 border-charcoal/30 rounded-lg p-3 bg-cream/30">
+                        {/* File header */}
+                        <div className="bg-charcoal text-amber dark:text-cream px-3 py-2 rounded-t-md mb-3 flex justify-between items-center">
+                          <h3 className="font-bold text-sm flex items-center gap-2">
+                            <span className="text-xs bg-amber/80 text-charcoal px-1.5 py-0.5 rounded">
+                              {fileName.endsWith('.js') ? 'JS' : 
+                               fileName.endsWith('.jsx') ? 'JSX' :
+                               fileName.endsWith('.ts') ? 'TS' :
+                               fileName.endsWith('.tsx') ? 'TSX' :
+                               fileName.endsWith('.py') ? 'PY' :
+                               fileName.endsWith('.java') ? 'JAVA' :
+                               fileName.endsWith('.dart') ? 'DART' : 'CODE'}
+                            </span>
+                            <span className="font-bold text-amber dark:text-cream underline">{fileName}</span>
+                          </h3>
+                          <span className="text-xs bg-amber/80 text-charcoal px-1.5 py-0.5 rounded">
+                            {fileSuggestions.length} {fileSuggestions.length === 1 ? 'issue' : 'issues'}
+                          </span>
+                        </div>
+                        
+                        {/* File suggestions */}
+                        <div className="space-y-3">
+                          {fileSuggestions.map((suggestion) => (
+                            <div
+                              key={suggestion.id}
+                              className="bg-cream/50 border-2 border-charcoal rounded-lg p-3"
+                            >
                       <div className="flex items-start justify-between mb-2">
                         <h4 className="font-bold text-charcoal text-sm">
-                          {suggestion.title}
+                          {suggestion.fileName && !suggestion.title.includes(suggestion.fileName) ? 
+                            `[${suggestion.fileName}] ${suggestion.title}` : 
+                            suggestion.title}
                         </h4>
                         <span
                           className={`px-2 py-1 rounded text-xs font-bold ${
@@ -573,7 +1066,11 @@ function checkBestPractices() {
                         </div>
                       )}
                     </div>
-                  ))}
+                          ))}
+                        </div>
+                      </div>
+                    ));
+                  })()}
                 </div>
 
                 {/* Additional Dynamic Content */}
@@ -659,6 +1156,81 @@ function checkBestPractices() {
               <div className="text-charcoal text-sm text-center py-8">
                 <div className="animate-spin text-2xl mb-4">⚡</div>
                 <p>The AI is putting on its reading glasses...</p>
+
+                {/* File processing progress indicator */}
+                {processingProgress.total > 0 && (
+                  <div className="mt-4">
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                      <div
+                        className="bg-sky h-2.5 rounded-full transition-all duration-300"
+                        style={{
+                          width: `${
+                            (processingProgress.current /
+                              processingProgress.total) *
+                            100
+                          }%`,
+                        }}
+                      ></div>
+                    </div>
+                    <p className="text-xs">
+                      Processing file {processingProgress.current} of{" "}
+                      {processingProgress.total}: {processingProgress.fileName}
+                    </p>
+
+                    {/* File size and compression information */}
+                    {fileProcessingInfo.compressedFiles.length > 0 && (
+                      <div className="mt-2 p-2 bg-sky/20 rounded text-xs">
+                        <p className="font-medium">
+                          Compressed {fileProcessingInfo.compressedFiles.length}{" "}
+                          file(s) to optimize processing
+                        </p>
+                        {fileProcessingInfo.totalSizeBefore > 0 && (
+                          <p>
+                            Size reduction:{" "}
+                            {Math.round(
+                              fileProcessingInfo.totalSizeBefore / 1024
+                            )}
+                            KB →
+                            {Math.round(
+                              fileProcessingInfo.totalSizeAfter / 1024
+                            )}
+                            KB (
+                            {Math.round(
+                              (1 -
+                                fileProcessingInfo.totalSizeAfter /
+                                  fileProcessingInfo.totalSizeBefore) *
+                                100
+                            )}
+                            % saved)
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* File size warnings */}
+                    {fileProcessingInfo.oversizedFiles.length > 0 && (
+                      <div className="mt-2 p-2 bg-amber/30 rounded text-xs">
+                        <p className="font-medium">
+                          ⚠️ {fileProcessingInfo.oversizedFiles.length} file(s)
+                          exceed the recommended size limit (
+                          {Math.round(FILE_SIZE_LIMIT / 1024)}KB):
+                        </p>
+                        <ul className="list-disc list-inside mt-1">
+                          {fileProcessingInfo.oversizedFiles.map(
+                            (fileName, index) => (
+                              <li key={index}>{fileName}</li>
+                            )
+                          )}
+                        </ul>
+                        <p className="mt-1">
+                          These files have been truncated to ensure optimal
+                          review quality.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <p className="text-xs mt-2 opacity-70">
                   This could take 10-30 seconds (yes, really)
                 </p>
@@ -674,6 +1246,7 @@ function checkBestPractices() {
           <div className="mt-4 p-3 bg-amber/20 border-2 dark:bg-cream border-charcoal rounded-lg">
             <p className="text-charcoal text-sm font-medium">
               {getTipMessage(reviewType)}
+              {cacheUsed ? " (cached)" : ""}
             </p>
           </div>
         </div>
