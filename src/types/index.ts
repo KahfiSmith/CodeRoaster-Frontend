@@ -4,6 +4,7 @@ export interface UploadedFile {
   size: number;
   extension: string;
   file: File;
+  preprocessed?: boolean;
 }
 
 export interface BookmarkItem {
@@ -149,12 +150,7 @@ export const SUPPORTED_LANGUAGES = [
   "ruby",
   "swift",
   "kotlin",
-  "scala",
-  "html",
-  "css",
-  "json",
-  "yaml",
-  "sql",
+  "dart",
 ] as const;
 
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
@@ -197,6 +193,8 @@ export interface ReviewSuggestion {
     original: string;
     improved: string;
   };
+  fileName?: string; // File name where the suggestion applies
+  filePath?: string; // Optional file path for multi-file projects
   canAutoFix: boolean;
   impact?: string;
   priority?: string;

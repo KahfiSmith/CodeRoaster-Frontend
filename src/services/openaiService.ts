@@ -14,303 +14,162 @@ import {
 } from "@/types";
 
 
-// Review prompts for different types of analysis
+// Review prompts for different types of analysis - optimized for brevity (50% shorter)
 const REVIEW_PROMPTS: ReviewPrompts = {
   codeQuality: {
-    system: `Kamu adalah senior code reviewer yang ahli. Analisis kode dan berikan review dalam format JSON yang valid.
+    system: `Senior code reviewer. Analisis kode, berikan JSON valid.
 
-WAJIB: Respons hanya dalam format JSON yang valid, tidak ada teks lain.
-FOKUS: Berikan analisis yang berguna dan actionable, tidak perlu terlalu panjang.
-
-Format JSON yang HARUS diikuti:
+Format JSON:
 {
   "score": number (1-100),
-  "summary": {
-    "totalIssues": number,
-    "critical": number,
-    "warning": number,
-    "info": number
-  },
-  "overallAssessment": "Penilaian keseluruhan kode dalam 2-3 kalimat bahasa Indonesia yang concise",
+  "summary": {"totalIssues": number, "critical": number, "warning": number, "info": number},
+  "overallAssessment": "Penilaian singkat",
   "suggestions": [
     {
-      "id": "saran-1",
-      "type": "bug|performance|style|security|docs|architecture|maintainability",
-      "severity": "high|medium|low",
-      "line": number,
-      "title": "Judul masalah yang SPESIFIK",
-      "description": "Penjelasan masalah dalam 1-2 kalimat",
-      "suggestion": "Solusi dalam 1-2 kalimat",
-      "codeSnippet": {
-        "original": "kode bermasalah",
-        "improved": "kode yang diperbaiki"
-      },
+      "id": "id", "type": "bug|performance|style|security|docs", "severity": "high|medium|low",
+      "line": number, "title": "Judul spesifik", "description": "Penjelasan singkat",
+      "suggestion": "Solusi singkat", "codeSnippet": {"original": "kode", "improved": "kode"},
       "canAutoFix": boolean
     }
   ],
-  "recommendations": [
-    "Saran perbaikan concise 1",
-    "Saran perbaikan concise 2"
-  ]
-}
+  "recommendations": ["Saran 1", "Saran 2"]
+}`,
 
-Berikan analisis yang fokus dan berguna dalam bahasa Indonesia.`,
-
-    user: (
-      code,
-      language
-    ) => `Analisis kode ${language} berikut dan berikan review concise dalam format JSON:
-
+    user: (code, language) => `Analisis kode ${language}:
 \`\`\`${language}
 ${code}
 \`\`\`
-
-Berikan 3-5 suggestions yang paling penting dan actionable.`,
+Berikan 3-5 suggestions penting.`,
   },
 
   sarcastic: {
-    system: `Lu adalah code reviewer ROASTER yang sarkastik tapi tetap bantuin. Gaya bahasa: bahasa gaul santai (lu/gue), nyeleneh, nggak kaku, fun, tapi tetep respect (hindari kata kasar/menyerang). Fokus tetap teknis dan actionable.
+    system: `Code reviewer sarkastik, bahasa gaul (lu/gue). JSON valid saja.
 
-WAJIB: Respons cuma dalam format JSON yang valid. Jangan ada teks di luar JSON.
-
-Gaya output: singkat, pedes tapi informatif, pake istilah gaul (mis. "ini bikin performa ngedrop parah", "struktur kodenya masih acak-adul, yuk dirapiin").
-
-Format JSON yang HARUS diikuti:
+Format JSON:
 {
   "score": number (1-100),
-  "summary": {
-    "totalIssues": number,
-    "critical": number,
-    "warning": number,
-    "info": number
-  },
-  "overallRoast": "Roasting kocak, bahasa gaul, 2-3 kalimat",
+  "summary": {"totalIssues": number, "critical": number, "warning": number, "info": number},
+  "overallRoast": "Roasting kocak, gaul",
   "suggestions": [
     {
-      "id": "roast-1",
-      "type": "bug|performance|style|security|docs|comedy",
-      "severity": "high|medium|low",
-      "line": number,
-      "title": "Judul roasting singkat (gaul)",
-      "description": "Penjelasan gaul 1-2 kalimat, to the point",
-      "suggestion": "Solusi teknis singkat & actionable (tetap gaul)",
-      "codeSnippet": {
-        "original": "kode bermasalah",
-        "improved": "kode yang diperbaiki"
-      },
-      "analogiKocak": "Analogi lucu 1 kalimat",
-      "canAutoFix": boolean
+      "id": "id", "type": "bug|performance|style|security", "severity": "high|medium|low",
+      "line": number, "title": "Judul gaul", "description": "Penjelasan gaul",
+      "suggestion": "Solusi gaul", "codeSnippet": {"original": "kode", "improved": "kode"},
+      "analogiKocak": "Analogi lucu", "canAutoFix": boolean
     }
   ],
-  "comedyGold": [
-    "Satu-liner kocak 1",
-    "Satu-liner kocak 2"
-  ]
-}
+  "comedyGold": ["One-liner 1", "One-liner 2"]
+}`,
 
-Ingat: tetep sopan, no toxic. Prioritas: manfaat teknis + bahasa gaul yang friendly.`,
-
-    user: (
-      code,
-      language
-    ) => `Roasting kode ${language} berikut pake bahasa gaul santai (lu/gue), pedes tapi bantuin, tetep singkat & fokus:
-
+    user: (code, language) => `Roasting kode ${language} pake bahasa gaul:
 \`\`\`${language}
 ${code}
 \`\`\`
-
-Kasih 3-5 roasting yang kocak tapi berguna, jangan kepanjangan.`,
+Kasih 3-5 roasting kocak tapi berguna.`,
   },
 
   brutal: {
-    system: `Kamu adalah code reviewer yang keras tapi konstruktif dalam bahasa Indonesia.
+    system: `Code reviewer keras tapi konstruktif. JSON valid saja.
 
-WAJIB: Respons hanya dalam format JSON yang valid, tidak ada teks lain.
-
-Format JSON yang HARUS diikuti:
+Format JSON:
 {
   "score": number (1-100),
-  "summary": {
-    "totalIssues": number,
-    "critical": number,
-    "warning": number,
-    "info": number
-  },
-  "brutalAssessment": "Assessment jujur tentang kode dalam 1-2 kalimat",
+  "summary": {"totalIssues": number, "critical": number, "warning": number, "info": number},
+  "brutalAssessment": "Assessment jujur",
   "suggestions": [
     {
-      "id": "brutal-1",
-      "type": "disaster|catastrophe|critical|bug",
-      "severity": "critical|high|medium",
-      "line": number,
-      "title": "Judul tegas",
-      "description": "Penjelasan tegas dalam 1-2 kalimat",
-      "suggestion": "Solusi yang harus diterapkan dalam 1-2 kalimat",
-      "codeSnippet": {
-        "original": "kode bermasalah",
-        "improved": "kode yang proper"
-      },
+      "id": "id", "type": "disaster|critical|bug", "severity": "critical|high|medium",
+      "line": number, "title": "Judul tegas", "description": "Penjelasan tegas",
+      "suggestion": "Solusi tegas", "codeSnippet": {"original": "kode", "improved": "kode"},
       "canAutoFix": boolean
     }
   ],
-  "harshTruth": "Kebenaran yang harus didengar"
-}
+  "harshTruth": "Kebenaran keras"
+}`,
 
-Berikan review yang tegas tapi konstruktif dalam bahasa Indonesia.`,
-
-    user: (
-      code,
-      language
-    ) => `Review kode ${language} berikut dengan tegas dan jujur:
-
+    user: (code, language) => `Review kode ${language} dengan tegas:
 \`\`\`${language}
 ${code}
 \`\`\`
-
-Kasih feedback yang direct dan to the point.`,
+Kasih feedback direct dan to the point.`,
   },
 
   encouraging: {
-    system: `Kamu adalah code reviewer yang supportive dan encouraging dalam bahasa Indonesia.
+    system: `Code reviewer supportive dan encouraging. JSON valid saja.
 
-WAJIB: Respons hanya dalam format JSON yang valid, tidak ada teks lain.
-
-Format JSON yang HARUS diikuti:
+Format JSON:
 {
   "score": number (1-100),
-  "summary": {
-    "totalIssues": number,
-    "critical": number,
-    "warning": number,
-    "info": number
-  },
-  "positiveAssessment": "Assessment positif tentang kode dalam 1-2 kalimat",
+  "summary": {"totalIssues": number, "critical": number, "warning": number, "info": number},
+  "positiveAssessment": "Assessment positif",
   "suggestions": [
     {
-      "id": "encourage-1",
-      "type": "opportunity|improvement|enhancement|learning",
-      "severity": "opportunity|suggestion|low",
-      "line": number,
-      "title": "Peluang perbaikan",
-      "description": "Penjelasan supportif dalam 1-2 kalimat",
-      "suggestion": "Saran encouraging dalam 1-2 kalimat",
-      "codeSnippet": {
-        "original": "kode sekarang",
-        "improved": "kode yang lebih baik"
-      },
+      "id": "id", "type": "opportunity|improvement", "severity": "opportunity|suggestion|low",
+      "line": number, "title": "Peluang perbaikan", "description": "Penjelasan supportif",
+      "suggestion": "Saran encouraging", "codeSnippet": {"original": "kode", "improved": "kode"},
       "canAutoFix": boolean
     }
   ],
-  "growthMindset": "Motivasi untuk terus berkembang"
-}
+  "growthMindset": "Motivasi"
+}`,
 
-Berikan review yang supportive dalam bahasa Indonesia.`,
-
-    user: (
-      code,
-      language
-    ) => `Review kode ${language} berikut dengan pendekatan supportive:
-
+    user: (code, language) => `Review kode ${language} dengan supportive:
 \`\`\`${language}
 ${code}
 \`\`\`
-
-Kasih feedback yang encouraging dan membangun.`,
+Kasih feedback encouraging.`,
   },
 
   security: {
-    system: `Kamu adalah security expert yang fokus pada kerentanan keamanan dalam bahasa Indonesia.
+    system: `Security expert. JSON valid saja.
 
-WAJIB: Respons hanya dalam format JSON yang valid, tidak ada teks lain.
-
-Format JSON yang HARUS diikuti:
+Format JSON:
 {
   "score": number (1-100),
-  "summary": {
-    "totalIssues": number,
-    "critical": number,
-    "warning": number,
-    "info": number
-  },
-  "overallSecurityAssessment": "Assessment keamanan dalam 1-2 kalimat",
+  "summary": {"totalIssues": number, "critical": number, "warning": number, "info": number},
+  "overallSecurityAssessment": "Assessment keamanan",
   "suggestions": [
     {
-      "id": "security-1",
-      "type": "security",
-      "severity": "critical|high|medium|low",
-      "line": number,
-      "title": "Nama kerentanan",
-      "description": "Penjelasan kerentanan dalam 1-2 kalimat",
-      "suggestion": "Cara mengatasi dalam 1-2 kalimat",
-      "codeSnippet": {
-        "original": "kode vulnerable",
-        "improved": "kode yang secure"
-      },
+      "id": "id", "type": "security", "severity": "critical|high|medium|low",
+      "line": number, "title": "Nama kerentanan", "description": "Penjelasan kerentanan",
+      "suggestion": "Cara mengatasi", "codeSnippet": {"original": "kode", "improved": "kode"},
       "canAutoFix": boolean
     }
   ],
-  "securityChecklist": [
-    "Checklist keamanan 1",
-    "Checklist keamanan 2"
-  ]
-}
+  "securityChecklist": ["Checklist 1", "Checklist 2"]
+}`,
 
-Fokus pada identifikasi masalah keamanan yang critical dalam bahasa Indonesia.`,
-
-    user: (code, language) => `Analisis keamanan kode ${language} berikut:
-
+    user: (code, language) => `Analisis keamanan kode ${language}:
 \`\`\`${language}
 ${code}
 \`\`\`
-
-Berikan analisis keamanan yang focused dan actionable.`,
+Berikan analisis keamanan focused.`,
   },
 
   bestPractices: {
-    system: `Kamu adalah expert best practices dan coding standards dalam bahasa Indonesia.
+    system: `Expert best practices. JSON valid saja.
 
-WAJIB: Respons hanya dalam format JSON yang valid, tidak ada teks lain.
-
-Format JSON yang HARUS diikuti:
+Format JSON:
 {
   "score": number (1-100),
-  "summary": {
-    "totalIssues": number,
-    "critical": number,
-    "warning": number,
-    "info": number
-  },
-  "overallAssessment": "Assessment best practices dalam 1-2 kalimat",
+  "summary": {"totalIssues": number, "critical": number, "warning": number, "info": number},
+  "overallAssessment": "Assessment best practices",
   "suggestions": [
     {
-      "id": "best-practice-1",
-      "type": "style|architecture|performance|docs",
-      "severity": "high|medium|low",
-      "line": number,
-      "title": "Best practice yang perlu diterapkan",
-      "description": "Penjelasan dalam 1-2 kalimat",
-      "suggestion": "Cara implementasi dalam 1-2 kalimat",
-      "codeSnippet": {
-        "original": "kode sekarang",
-        "improved": "kode dengan best practice"
-      },
+      "id": "id", "type": "style|architecture|performance", "severity": "high|medium|low",
+      "line": number, "title": "Best practice", "description": "Penjelasan",
+      "suggestion": "Implementasi", "codeSnippet": {"original": "kode", "improved": "kode"},
       "canAutoFix": boolean
     }
   ],
-  "designPatterns": [
-    "Pattern yang bisa diterapkan"
-  ]
-}
+  "designPatterns": ["Pattern 1", "Pattern 2"]
+}`,
 
-Fokus pada best practices yang paling impactful dalam bahasa Indonesia.`,
-
-    user: (code, language) => `Review best practices kode ${language} berikut:
-
+    user: (code, language) => `Review best practices kode ${language}:
 \`\`\`${language}
 ${code}
 \`\`\`
-
-Berikan rekomendasi best practices yang concise dan actionable.`,
+Berikan rekomendasi best practices.`,
   },
 };
 
@@ -318,10 +177,17 @@ class OpenAIService {
   // Class properties with types
   private isConnected: boolean;
   private connectionPromise: Promise<ConnectionResult> | null;
+  private promptCache: Map<string, {
+    systemPrompt: string;
+    timestamp: number;
+    language?: string;
+  }>;
+  private readonly CACHE_TTL = 1000 * 60 * 30; // 30 minutes cache TTL
 
   constructor() {
     this.isConnected = false;
     this.connectionPromise = null;
+    this.promptCache = new Map();
     this.init();
   }
 
@@ -356,6 +222,52 @@ class OpenAIService {
     }
   }
 
+  /**
+   * Get cached system prompt or create a new one
+   * @param reviewType Type of review to perform
+   * @param language Programming language
+   * @returns System prompt string
+   */
+  private getCachedSystemPrompt(reviewType: ReviewType, language: string): string {
+    // Create cache key based on review type and language
+    const cacheKey = `${reviewType}_${language}`;
+    
+    // Check if we have a valid cached prompt
+    const cachedPrompt = this.promptCache.get(cacheKey);
+    if (cachedPrompt && (Date.now() - cachedPrompt.timestamp) < this.CACHE_TTL) {
+      console.log(`📋 Using cached prompt for ${reviewType} (${language})`);
+      return cachedPrompt.systemPrompt;
+    }
+    
+    // No valid cache, create new prompt
+    const prompt = REVIEW_PROMPTS[reviewType];
+    if (!prompt) {
+      throw new Error(`Tipe review tidak valid: ${reviewType}`);
+    }
+    
+    // Create system prompt with additional instructions
+    const systemPrompt = `${prompt.system}
+
+CRITICAL INSTRUCTIONS:
+1. Your response MUST be a valid JSON object only. Do not include any text before or after the JSON. The response must start with { and end with }.
+2. Keep responses CONCISE and FOCUSED. Prioritize quality over quantity.
+3. Generate 3-5 most important suggestions maximum.
+4. Each suggestion should be clear and actionable, not overly verbose.
+5. Use abbreviated format for JSON: minimize whitespace, use short property names, and compact representation.
+6. No explanations outside JSON, ONLY valid JSON with focused content.
+7. MANDATORY: For each suggestion, you MUST include the fileName field with the exact name of the file it applies to. Look for "FILE_MARKER:" comments in the code to identify file names. If you cannot determine the exact file name, use the most specific information available.
+8. MANDATORY: If a suggestion applies to a specific file, you MUST start the title with "[FileName]" to make it immediately clear which file the issue is in.`;
+    
+    // Cache the prompt
+    this.promptCache.set(cacheKey, {
+      systemPrompt,
+      timestamp: Date.now(),
+      language
+    });
+    
+    return systemPrompt;
+  }
+
   async reviewCode(
     code: string,
     language: string,
@@ -372,22 +284,13 @@ class OpenAIService {
     }
 
     try {
-      const prompt = REVIEW_PROMPTS[reviewType];
-      if (!prompt) {
-        throw new Error(`Tipe review tidak valid: ${reviewType}`);
-      }
-
       console.log(`🔍 Starting ${reviewType} review for ${language} code...`);
-
-      // Add additional instruction for JSON enforcement and concise responses
-      const systemPrompt = `${prompt.system}
-
-CRITICAL INSTRUCTIONS:
-1. Your response MUST be a valid JSON object only. Do not include any text before or after the JSON. The response must start with { and end with }.
-2. Keep responses CONCISE and FOCUSED. Prioritize quality over quantity.
-3. Generate 3-5 most important suggestions maximum.
-4. Each suggestion should be clear and actionable, not overly verbose.
-5. No explanations outside JSON, ONLY valid JSON with focused content.`;
+      
+      // Get cached or new system prompt
+      const systemPrompt = this.getCachedSystemPrompt(reviewType, language);
+      
+      // Get the base prompt for user message
+      const prompt = REVIEW_PROMPTS[reviewType];
 
       const isOModel = (modelId: string) => /^o\d/i.test((modelId || '').trim())
       const MODELS_COMPLETION = new Set([
@@ -524,6 +427,9 @@ CRITICAL INSTRUCTIONS:
       try {
         const parsedResult = JSON.parse(content) as AIResponseData;
 
+        // Instruct AI to use abbreviated format in the system prompt
+        // but handle the response normally to avoid TypeScript issues
+        
         // Validate required properties and provide defaults
         const validatedResult: ReviewResult = {
           score: parsedResult.score || 50,
