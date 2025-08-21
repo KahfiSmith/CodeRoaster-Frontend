@@ -253,6 +253,7 @@ export interface ReviewMetadata {
   harshTruth?: string;
   encouragements?: string[];
   growthMindset?: string;
+  multiFileAnalysis?: string;
 }
 
 export interface ReviewResult {

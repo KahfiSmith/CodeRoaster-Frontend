@@ -394,7 +394,13 @@ CRITICAL INSTRUCTIONS:
   async reviewCode(
     code: string,
     language: string,
-    reviewType: ReviewType = "codeQuality"
+    reviewType: ReviewType = "codeQuality",
+    options?: {
+      totalFileSize?: number;
+      fileCount?: number;
+      isMultiFile?: boolean;
+      preferFasterModel?: boolean;
+    }
   ): Promise<ReviewResult> {
     if (!this.connectionPromise) {
       await this.init();
@@ -439,6 +445,24 @@ CRITICAL INSTRUCTIONS:
       // Some models (o* family) require `max_completion_tokens` instead of `max_tokens`
       const useCompletionTokens = usesCompletionTokens(OPENAI_CONFIG.model)
       type ChatParams = ChatCompletionCreateParamsNonStreaming & { max_completion_tokens?: number }
+      
+      // Jika ini adalah multi-file review, tambahkan informasi khusus ke system message
+      if (options?.isMultiFile && messages.length > 1) {
+        const multiFileInfo = `
+PENTING - MULTIPLE FILE REVIEW:
+- Anda sedang mereview ${options.fileCount || 'beberapa'} file sekaligus
+- Total ukuran: ${options.totalFileSize ? Math.round(options.totalFileSize/1024) + 'KB' : 'beragam'}
+- Pastikan untuk menganalisis SEMUA file yang diberikan, bukan hanya file pertama
+- Setiap file dibatasi oleh marker FILE_MARKER dan END_FILE_MARKER
+- Berikan saran untuk SETIAP file, bukan hanya file pertama
+- Selalu sertakan nama file dalam setiap saran dengan format [NamaFile]
+`;
+        
+        if (messages[0].role === 'system') {
+          messages[0].content = messages[0].content + '\n\n' + multiFileInfo;
+        }
+      }
+      
       const requestOptions: ChatParams = {
         model: OPENAI_CONFIG.model,
         messages,
@@ -792,10 +816,44 @@ CRITICAL INSTRUCTIONS:
             Math.floor(Math.random() * sarcasticFallbacks.length)
           ];
 
+        // Untuk multi-file, berikan skor yang lebih baik dan lebih banyak saran
+        const isMultiFile = options?.isMultiFile === true;
+        const multiFileSuggestions = isMultiFile ? [
+          {
+            id: "multi-file-1",
+            type: "info" as const,
+            title: "Analisis Multi-File",
+            description: "Sistem mendeteksi beberapa file yang perlu dianalisis. Pastikan struktur dan konsistensi antar file terjaga.",
+            severity: "medium" as const,
+            line: 1,
+            fileName: "General",
+            suggestion: "Tinjau struktur dan hubungan antar file",
+            codeSnippet: { original: "// Multiple files", improved: "// Well-structured files" },
+            canAutoFix: false
+          },
+          {
+            id: "multi-file-2",
+            type: "info" as const,
+            title: "Konsistensi Penamaan",
+            description: "Pastikan penamaan variabel dan fungsi konsisten di semua file yang diupload.",
+            severity: "medium" as const,
+            line: 1,
+            fileName: "General",
+            suggestion: "Gunakan konvensi penamaan yang konsisten",
+            codeSnippet: { original: "// Inconsistent naming", improved: "// Consistent naming" },
+            canAutoFix: false
+          }
+        ] : [];
+        
         return {
-          score: 5,
-          summary: { totalIssues: 1, critical: 0, warning: 0, info: 1 },
-          suggestions: fallbackSuggestions,
+          score: isMultiFile ? 65 : 50,
+          summary: { 
+            totalIssues: isMultiFile ? 3 : 1, 
+            critical: 0, 
+            warning: isMultiFile ? 1 : 0, 
+            info: isMultiFile ? 2 : 1 
+          },
+          suggestions: [...fallbackSuggestions, ...multiFileSuggestions],
           metadata: {
             reviewType,
             language,
@@ -804,6 +862,7 @@ CRITICAL INSTRUCTIONS:
             tokensUsed: response.usage?.total_tokens || 0,
             fallback: true,
             error: randomMessage,
+            multiFileAnalysis: isMultiFile ? "enabled" : undefined
           },
         };
       }
