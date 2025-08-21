@@ -256,7 +256,7 @@ export const FileUploader = ({ uploadedFiles, setUploadedFiles, onSubmit, isAnal
             <input
               type="file"
               className="hidden"
-              accept=".js,.jsx,.ts,.tsx,.py,.java,.cpp,.c,.go,.rs,.php,.rb,.swift,.kt,.dart,.scala,.sh,.html,.css,.json,.xml,.yaml,.yml"
+              accept=".js,.jsx,.ts,.tsx,.py,.java,.cpp,.c,.go,.rs,.php,.rb,.swift,.kt,.dart"
               onChange={handleFileChange}
               multiple
             />

@@ -299,7 +299,7 @@ const CodeReviewResultsComponent = forwardRef<
       total: number;
       fileName: string;
     }>({ current: 0, total: 0, fileName: "" });
-    const [cacheUsed, setCacheUsed] = useState<boolean>(false);
+    // Removed cacheUsed state since we don't show the indicator anymore
     const debounceTimerRef = useRef<number | null>(null);
 
     // State for tracking file size warnings and compression
@@ -579,7 +579,7 @@ const CodeReviewResultsComponent = forwardRef<
 
           if (cached) {
             console.log("⚡ Cache hit! Skipping API call");
-            setCacheUsed(true);
+            // Cache hit indicator removed
             setLocalReviewResults(cached);
             saveToHistory(cached, uploadedFiles);
             // finalize analyzing state since we early return
@@ -590,10 +590,22 @@ const CodeReviewResultsComponent = forwardRef<
 
           console.log("🔄 Cache miss, proceeding with API call");
 
+          // Untuk file yang lebih besar, tambahkan parameter ukuran total dan jumlah file
+          const totalSize = uploadedFiles.reduce((sum, file) => sum + file.size, 0);
+          const fileCount = uploadedFiles.length;
+          
+          console.log(`📊 Analyzing ${fileCount} files with total size ${Math.round(totalSize/1024)}KB`);
+          
           const result = await openaiService.reviewCode(
             codeToAnalyze,
             language,
-            reviewType
+            reviewType,
+            {
+              totalFileSize: totalSize,
+              fileCount: fileCount,
+              // Jika lebih dari 1 file, tambahkan flag khusus
+              isMultiFile: fileCount > 1
+            }
           );
           setLocalReviewResults(result);
 
@@ -996,7 +1008,7 @@ function checkBestPractices() {
                     return Object.entries(fileGroups).map(([fileName, fileSuggestions]) => (
                       <div key={fileName} className="border-2 border-charcoal/30 rounded-lg p-3 bg-cream/30">
                         {/* File header */}
-                        <div className="bg-charcoal text-amber dark:text-cream px-3 py-2 rounded-t-md mb-3 flex justify-between items-center">
+                        <div className="bg-charcoal text-amber dark:text-cream px-3 py-2 rounded-md mb-3 flex justify-between items-center">
                           <h3 className="font-bold text-sm flex items-center gap-2">
                             <span className="text-xs bg-amber/80 text-charcoal px-1.5 py-0.5 rounded">
                               {fileName.endsWith('.js') ? 'JS' : 
@@ -1307,7 +1319,6 @@ function checkBestPractices() {
           <div className="mt-4 p-3 bg-amber/20 border-2 dark:bg-cream border-charcoal rounded-lg">
             <p className="text-charcoal text-sm font-medium">
               {getTipMessage(reviewType)}
-              {cacheUsed ? " (cached)" : ""}
             </p>
           </div>
         </div>
