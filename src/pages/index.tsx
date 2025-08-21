@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { UploadedFile, ReviewType } from "@/types";
 import { FileUploader } from "@/components/features/file";
 import {
@@ -9,6 +9,7 @@ import { Header } from "@/components/layout";
 import { Button } from "@/components/ui/button";
  
 import { useOpenAIValidation } from "@/hooks";
+import { reviewTypes } from "@/data/reviewTypes";
 
 export default function CodeReviewer() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -21,55 +22,20 @@ export default function CodeReviewer() {
   // State for tracking analysis
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Log configuration status
+  // Log configuration status only in development
   useEffect(() => {
-    if (isConfigured) {
-      console.log(`✅ OpenAI configured with model: ${model}, max tokens: ${maxTokens}, temperature: ${temperature}`);
-    } else {
-      console.warn('⚠️ OpenAI not properly configured. Check your .env.local file');
+    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      if (isConfigured) {
+        console.log(`✅ OpenAI configured with model: ${model}, max tokens: ${maxTokens}, temperature: ${temperature}`);
+      } else {
+        console.warn('⚠️ OpenAI not properly configured. Check your .env.local file');
+      }
     }
   }, [isConfigured, model, maxTokens, temperature]);
 
-  const reviewTypes = [
-    {
-      key: "sarcastic" as ReviewType,
-      label: "🔥 Roasting Sarkastik",
-      description: "Sarkastik tapi membantu",
-      color: "bg-coral",
-    },
-    {
-      key: "brutal" as ReviewType,
-      label: "💀 Brutal Jujur",
-      description: "Tanpa ampun, maksimal galak",
-      color: "bg-orange-400",
-    },
-    {
-      key: "encouraging" as ReviewType,
-      label: "🌟 Mentor Supportif",
-      description: "Positif dan mendukung",
-      color: "bg-green-300",
-    },
-    {
-      key: "codeQuality" as ReviewType,
-      label: "🔍 Profesional",
-      description: "Serius dan menyeluruh",
-      color: "bg-sky",
-    },
-    {
-      key: "security" as ReviewType,
-      label: "🛡️ Fokus Keamanan",
-      description: "Khusus vulnerability keamanan",
-      color: "bg-amber",
-    },
-    {
-      key: "bestPractices" as ReviewType,
-      label: "⭐ Best Practices",
-      description: "Pola desain dan konvensi",
-      color: "bg-purple-300",
-    },
-  ];
+  // Using reviewTypes from external file for better code splitting
 
-  const handleSubmitFiles = async () => {
+  const handleSubmitFiles = useCallback(async () => {
     if (uploadedFiles.length > 0) {
       // Start the AI review process through the ref
       if (codeReviewRef.current) {
@@ -78,12 +44,15 @@ export default function CodeReviewer() {
     } else {
       console.warn('⚠️ No files uploaded to review');
     }
-  };
+  }, [uploadedFiles]);
 
-  const handleAnalysisStateChange = (analyzing: boolean) => {
+  const handleAnalysisStateChange = useCallback((analyzing: boolean) => {
     setIsAnalyzing(analyzing);
-    console.log(analyzing ? '🔄 Analysis state changed to analyzing' : '✅ Analysis completed');
-  };
+    // Only log in development environment
+    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      console.log(analyzing ? '🔄 Analysis state changed to analyzing' : '✅ Analysis completed');
+    }
+  }, []);
 
   return (
     <div className="bg-cream dark:bg-coal-500 min-h-screen p-8">
