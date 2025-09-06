@@ -27,14 +27,7 @@ export default defineConfig(({ mode }) => ({
         }
       }
     },
-    // Enable minification for better compression
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: mode === 'production',
-        drop_debugger: mode === 'production'
-      }
-    }
+    // Gunakan minifier default (esbuild). Drop console/debugger di bawah opsi esbuild.
   },
   esbuild: {
     // Remove console logs and debugger in production build
