@@ -376,8 +376,8 @@ CRITICAL INSTRUCTIONS:
 4. Each suggestion should be clear and actionable, not overly verbose.
 5. Use abbreviated format for JSON: minimize whitespace, use short property names, and compact representation.
 6. No explanations outside JSON, ONLY valid JSON with focused content.
-7. MANDATORY: For each suggestion, you MUST include the fileName field with the exact name of the file it applies to. Look for "FILE_MARKER:" comments in the code to identify file names. If you cannot determine the exact file name, use the most specific information available.
-8. MANDATORY: If a suggestion applies to a specific file, you MUST start the title with "[FileName]" to make it immediately clear which file the issue is in.
+7. MANDATORY: Untuk SETIAP file yang dibatasi oleh "FILE_MARKER:" dan "END_FILE_MARKER", berikan sedikitnya 1 saran spesifik.
+8. MANDATORY: Sertakan properti fileName dengan NAMA FILE YANG PERSIS sesuai marker, dan awali title dengan "[FileName]".
 9. MANDATORY: All text content MUST be in Bahasa Indonesia, but keep the JSON structure intact.
 10. MANDATORY: Ensure special characters in Bahasa Indonesia are properly escaped in the JSON.`;
     
@@ -432,7 +432,12 @@ CRITICAL INSTRUCTIONS:
         'o4-mini',
       ])
       const usesCompletionTokens = (modelId: string) => MODELS_COMPLETION.has((modelId || '').trim()) || isOModel(modelId)
-      const messages = isOModel(OPENAI_CONFIG.model)
+
+      // Choose faster model and tighter token budget when requested
+      const modelToUse = options?.preferFasterModel ? 'gpt-5-nano' : OPENAI_CONFIG.model
+      const maxTokensToUse = options?.preferFasterModel ? Math.min(OPENAI_CONFIG.max_tokens, 900) : OPENAI_CONFIG.max_tokens
+
+      const messages = isOModel(modelToUse)
         ? [
             { role: "user" as const, content: `${systemPrompt}\n\n${prompt.user(code, language)}` },
           ]
@@ -443,7 +448,7 @@ CRITICAL INSTRUCTIONS:
 
       // Create request object with optimized settings for reliable responses
       // Some models (o* family) require `max_completion_tokens` instead of `max_tokens`
-      const useCompletionTokens = usesCompletionTokens(OPENAI_CONFIG.model)
+      const useCompletionTokens = usesCompletionTokens(modelToUse)
       type ChatParams = ChatCompletionCreateParamsNonStreaming & { max_completion_tokens?: number }
       
       // Jika ini adalah multi-file review, tambahkan informasi khusus ke system message
@@ -464,15 +469,15 @@ PENTING - MULTIPLE FILE REVIEW:
       }
       
       const requestOptions: ChatParams = {
-        model: OPENAI_CONFIG.model,
+        model: modelToUse,
         messages,
       } as ChatParams
       // Always request JSON response; if model rejects, we retry without in catch
       ;(requestOptions as ChatParams).response_format = { type: "json_object" } as const
       if (useCompletionTokens) {
-        requestOptions.max_completion_tokens = OPENAI_CONFIG.max_tokens
+        requestOptions.max_completion_tokens = maxTokensToUse
       } else {
-        requestOptions.max_tokens = OPENAI_CONFIG.max_tokens
+        requestOptions.max_tokens = maxTokensToUse
         requestOptions.temperature = OPENAI_CONFIG.temperature
         requestOptions.top_p = OPENAI_CONFIG.top_p
         requestOptions.frequency_penalty = OPENAI_CONFIG.frequency_penalty
@@ -487,35 +492,35 @@ PENTING - MULTIPLE FILE REVIEW:
         // Retry: switch to max_completion_tokens if max_tokens unsupported
         if (message.includes("Unsupported parameter") && message.includes("max_tokens")) {
           const retryOptions: ChatParams = {
-            model: OPENAI_CONFIG.model,
+            model: modelToUse,
             messages,
-            max_completion_tokens: OPENAI_CONFIG.max_tokens,
+            max_completion_tokens: maxTokensToUse,
           } as ChatParams
           try {
             response = await openai.chat.completions.create(retryOptions)
           } catch (err2: unknown) {
             // Final fallback: minimal payload (only model, messages, and token cap)
             const minimal: ChatParams = {
-              model: OPENAI_CONFIG.model,
+              model: modelToUse,
               messages,
             } as ChatParams
-            if (usesCompletionTokens(OPENAI_CONFIG.model)) {
-              minimal.max_completion_tokens = OPENAI_CONFIG.max_tokens
+            if (usesCompletionTokens(modelToUse)) {
+              minimal.max_completion_tokens = maxTokensToUse
             } else {
-              minimal.max_tokens = OPENAI_CONFIG.max_tokens
+              minimal.max_tokens = maxTokensToUse
             }
             response = await openai.chat.completions.create(minimal)
           }
         } else if (message.includes("response_format") || message.includes("json_object")) {
           // Retry without response_format for models that reject it
           const minimal: ChatParams = {
-            model: OPENAI_CONFIG.model,
+            model: modelToUse,
             messages,
           } as ChatParams
-          if (usesCompletionTokens(OPENAI_CONFIG.model)) {
-            minimal.max_completion_tokens = OPENAI_CONFIG.max_tokens
+          if (usesCompletionTokens(modelToUse)) {
+            minimal.max_completion_tokens = maxTokensToUse
           } else {
-            minimal.max_tokens = OPENAI_CONFIG.max_tokens
+            minimal.max_tokens = maxTokensToUse
           }
           response = await openai.chat.completions.create(minimal)
         } else {
@@ -531,13 +536,13 @@ PENTING - MULTIPLE FILE REVIEW:
           { role: "user" as const, content: "Ulangi jawaban DALAM JSON VALID sesuai schema di instruksi. Wajib 3-5 suggestions. Jangan ada teks di luar JSON." },
         ]
         const forceJsonOptions: ChatParams = {
-          model: OPENAI_CONFIG.model,
+          model: modelToUse,
           messages: forceJsonMessages,
         } as ChatParams
         if (useCompletionTokens) {
-          forceJsonOptions.max_completion_tokens = OPENAI_CONFIG.max_tokens
+          forceJsonOptions.max_completion_tokens = maxTokensToUse
         } else {
-          forceJsonOptions.max_tokens = OPENAI_CONFIG.max_tokens
+          forceJsonOptions.max_tokens = maxTokensToUse
           forceJsonOptions.temperature = OPENAI_CONFIG.temperature
           forceJsonOptions.top_p = OPENAI_CONFIG.top_p
           forceJsonOptions.frequency_penalty = OPENAI_CONFIG.frequency_penalty
@@ -572,14 +577,140 @@ PENTING - MULTIPLE FILE REVIEW:
 
       // Parse JSON response
       try {
-        const parsedResult = JSON.parse(content) as AIResponseData;
+        const ensureRecord = (val: unknown): Record<string, unknown> =>
+          (val && typeof val === 'object') ? (val as Record<string, unknown>) : {};
+
+        const toNumber = (v: unknown): number | undefined => {
+          if (typeof v === 'number') return v;
+          if (typeof v === 'string') {
+            const n = Number(v);
+            return Number.isFinite(n) ? n : undefined;
+          }
+          return undefined;
+        };
+
+        const toString = (v: unknown): string | undefined =>
+          typeof v === 'string' && v.trim().length > 0 ? v : undefined;
+
+        const pickFirst = <T = unknown>(...vals: unknown[]): T | undefined =>
+          (vals.find(v => v !== undefined && v !== null && v !== '') as T | undefined);
+
+        const parsedRawUnknown: unknown = JSON.parse(content);
+        const parsedRaw = ensureRecord(parsedRawUnknown);
+
+        // Normalize potential Indonesian key variants to expected schema
+        const normalizeSummary = (raw: unknown): AIResponseData['summary'] | undefined => {
+          const r = ensureRecord(raw);
+          const totalIssues = toNumber(pickFirst(r.totalIssues, r['total_issue'], r.total, r['totalMasalah'], r['jumlahMasalah'])) ?? 0;
+          const critical = toNumber(pickFirst(r.critical, r['kritis'])) ?? 0;
+          const warning = toNumber(pickFirst(r.warning, r['peringatan'], r['waspada'])) ?? 0;
+          const info = toNumber(pickFirst(r.info, r['informasi'], r['ringan'])) ?? 0;
+          if (totalIssues === 0 && critical === 0 && warning === 0 && info === 0) return { totalIssues: 0, critical: 0, warning: 0, info: 0 };
+          return { totalIssues, critical, warning, info };
+        };
+
+        const mapSeverity = (val: unknown): ReviewSuggestion['severity'] => {
+          const s = String(val ?? '').toLowerCase();
+          if (["critical", "kritis"].includes(s)) return "critical";
+          if (["high", "tinggi"].includes(s)) return "high";
+          if (["medium", "sedang"].includes(s)) return "medium";
+          if (["low", "rendah"].includes(s)) return "low";
+          if (["opportunity", "peluang"].includes(s)) return "opportunity";
+          if (["enhancement", "peningkatan"].includes(s)) return "enhancement";
+          if (["suggestion", "saran"].includes(s)) return "enhancement";
+          return "low";
+        };
+
+        const normalizeSuggestionItem = (s: unknown, index: number): ReviewSuggestion => {
+          const o = ensureRecord(s);
+          const title = toString(pickFirst(o.title, o['judul'])) || `Saran ${index + 1}`;
+          const description = toString(pickFirst(o.description, o['deskripsi'])) || "Tidak ada deskripsi tersedia";
+          const suggestion = toString(pickFirst(o.suggestion, o['saran'])) || "Tidak ada saran spesifik";
+          const cs = ensureRecord(pickFirst(o.codeSnippet, o['cuplikankode'], o['kode']));
+          return {
+            id: (toString(o.id) || `suggestion-${index}`),
+            type: (toString(pickFirst(o.type, o['tipe'])) as ReviewSuggestion['type']) || 'info',
+            severity: mapSeverity(pickFirst(o.severity, o['keparahan'], o['tingkat'])),
+            line: toNumber(pickFirst(o.line, o['baris'])) || 1,
+            title,
+            description,
+            suggestion,
+            fileName: toString(pickFirst(o.fileName, o['filename'], o['file'], o['namaBerkas'])),
+            codeSnippet: {
+              original: toString(pickFirst(cs.original, cs['sebelum'])) || "",
+              improved: toString(pickFirst(cs.improved, cs['sesudah'])) || "",
+            },
+            analogiKocak: toString(o.analogiKocak),
+            urgencyLevel: toString(pickFirst(o.urgencyLevel, o['prioritas'])),
+            learningOpportunity: toString(pickFirst(o.learningOpportunity, o['peluangBelajar'])),
+            canAutoFix: Boolean(pickFirst(o.canAutoFix, o['bisaAutoPerbaiki']) ?? false),
+          };
+        };
+
+        const parsedResult: AIResponseData = {
+          score: toNumber(pickFirst(parsedRaw.score, parsedRaw['skor'], parsedRaw['nilai'])) || undefined,
+          summary: normalizeSummary(pickFirst(parsedRaw.summary, parsedRaw.ringkasan)),
+          suggestions: (() => {
+            const arr = pickFirst(parsedRaw.suggestions, parsedRaw['saran'], parsedRaw['temuan'], parsedRaw['issues']) as unknown;
+            return Array.isArray(arr) ? (arr as unknown[]).map((s, i) => normalizeSuggestionItem(s, i)) : undefined;
+          })(),
+          overallAssessment: toString(pickFirst(parsedRaw.overallAssessment, parsedRaw['penilaianKeseluruhan'], parsedRaw['penilaianUmum'])),
+          overallSecurityAssessment: toString(pickFirst(parsedRaw.overallSecurityAssessment, parsedRaw['penilaianKeamanan'])),
+          overallRoast: toString(pickFirst(parsedRaw.overallRoast, parsedRaw['roastingKeseluruhan'])),
+          brutalAssessment: toString(pickFirst(parsedRaw.brutalAssessment, parsedRaw['penilaianBrutal'])),
+          positiveAssessment: toString(pickFirst(parsedRaw.positiveAssessment, parsedRaw['penilaianPositif'])),
+          recommendations: ((): string[] | undefined => {
+            const v = pickFirst(parsedRaw.recommendations, parsedRaw['rekomendasi']);
+            return Array.isArray(v) ? (v as unknown[]).map(x => String(x)) : undefined;
+          })(),
+          securityChecklist: ((): string[] | undefined => {
+            const v = pickFirst(parsedRaw.securityChecklist, parsedRaw['daftarPeriksaKeamanan']);
+            return Array.isArray(v) ? (v as unknown[]).map(x => String(x)) : undefined;
+          })(),
+          designPatterns: ((): string[] | undefined => {
+            const v = pickFirst(parsedRaw.designPatterns, parsedRaw['polaDesain']);
+            return Array.isArray(v) ? (v as unknown[]).map(x => String(x)) : undefined;
+          })(),
+          comedyGold: ((): string[] | undefined => {
+            const v = pickFirst(parsedRaw.comedyGold, parsedRaw['komedi']);
+            return Array.isArray(v) ? (v as unknown[]).map(x => String(x)) : undefined;
+          })(),
+          motivasiSarkastik: toString(parsedRaw['motivasiSarkastik']),
+          harshTruth: toString(pickFirst(parsedRaw.harshTruth, parsedRaw['kebenaranKeras'])),
+          growthMindset: toString(pickFirst(parsedRaw.growthMindset, parsedRaw['polaPikirBerkembang'])),
+        } as AIResponseData;
+
+        // Derive score if missing using summary/suggestions
+        const computeScore = (
+          summ?: AIResponseData['summary'],
+          suggs?: Array<{ severity?: ReviewSuggestion['severity'] }>
+        ) => {
+          if (summ) {
+            const penalties = (summ.critical || 0) * 25 + (summ.warning || 0) * 12 + (summ.info || 0) * 4;
+            return Math.max(10, Math.min(100, 100 - penalties));
+          }
+          if (Array.isArray(suggs) && suggs.length > 0) {
+            const weights: Record<ReviewSuggestion['severity'], number> = {
+              critical: 25, high: 20, medium: 12, low: 5, opportunity: 3, enhancement: 3, suggestion: 3
+            };
+            const totalPenalty = suggs.reduce((acc, s) => {
+              const sev = (s.severity ?? 'low') as ReviewSuggestion['severity']
+              return acc + (weights[sev] ?? 4)
+            }, 0);
+            // Normalize by number of items to avoid over-penalizing many low issues
+            const avgPenalty = totalPenalty / suggs.length;
+            return Math.max(10, Math.min(100, 100 - Math.round(avgPenalty * 1.2)));
+          }
+          return undefined;
+        };
 
         // Instruct AI to use abbreviated format in the system prompt
         // but handle the response normally to avoid TypeScript issues
         
         // Validate required properties and provide defaults
+        const derivedScore = computeScore(parsedResult.summary, Array.isArray(parsedResult.suggestions) ? parsedResult.suggestions : undefined);
         const validatedResult: ReviewResult = {
-          score: parsedResult.score || 50,
+          score: (parsedResult.score ?? derivedScore ?? 50),
           summary: {
             totalIssues: parsedResult.summary?.totalIssues || 0,
             critical: parsedResult.summary?.critical || 0,
@@ -613,13 +744,12 @@ PENTING - MULTIPLE FILE REVIEW:
           metadata: {
             reviewType,
             language,
-            model: OPENAI_CONFIG.model,
+            model: modelToUse,
             timestamp: new Date().toISOString(),
             tokensUsed: response.usage?.total_tokens || 0,
             // Store only essential assessment fields
             overallAssessment: parsedResult.overallAssessment || undefined,
-            overallSecurityAssessment:
-              parsedResult.overallSecurityAssessment || undefined,
+            overallSecurityAssessment: parsedResult.overallSecurityAssessment || undefined,
             overallRoast: parsedResult.overallRoast || undefined,
             brutalAssessment: parsedResult.brutalAssessment || undefined,
             positiveAssessment: parsedResult.positiveAssessment || undefined,
@@ -638,19 +768,27 @@ PENTING - MULTIPLE FILE REVIEW:
           console.log("⚠️ No suggestions found in API response, creating default suggestions");
           
           // Try to get suggestions from API first
+          const nudgeInstructionByType: Record<ReviewType, string> = {
+            codeQuality: "Tambahkan 3-5 saran terpenting. Tetap gunakan JSON VALID sesuai skema.",
+            security: "Tambahkan 3-5 temuan keamanan (severity jelas). Tetap dalam JSON VALID sesuai skema.",
+            bestPractices: "Tambahkan 3-5 rekomendasi best practices. Tampilkan dalam JSON VALID sesuai skema.",
+            sarcastic: "Tambahkan 3-5 roasting kocak tapi berguna. Tetap JSON VALID sesuai skema (bahasa gaul Indonesia).",
+            brutal: "Tambahkan 3-5 kritik tegas dan langsung. Tetap JSON VALID sesuai skema (bahasa Indonesia).",
+            encouraging: "Tambahkan 3-5 saran supportif dan positif. Tetap JSON VALID sesuai skema (bahasa Indonesia).",
+          } as const
           const nudgeMessages = [
             ...messages,
-            { role: "user" as const, content: "Add 3-5 most important suggestions. Keep JSON format valid according to schema." },
+            { role: "user" as const, content: nudgeInstructionByType[reviewType] || nudgeInstructionByType.codeQuality },
           ]
           const nudgeOptions: ChatParams = {
-            model: OPENAI_CONFIG.model,
+            model: modelToUse,
             messages: nudgeMessages,
           } as ChatParams
           
           if (useCompletionTokens) {
-            nudgeOptions.max_completion_tokens = OPENAI_CONFIG.max_tokens
+            nudgeOptions.max_completion_tokens = maxTokensToUse
           } else {
-            nudgeOptions.max_tokens = OPENAI_CONFIG.max_tokens
+            nudgeOptions.max_tokens = maxTokensToUse
             nudgeOptions.temperature = OPENAI_CONFIG.temperature
             nudgeOptions.top_p = OPENAI_CONFIG.top_p
             nudgeOptions.frequency_penalty = OPENAI_CONFIG.frequency_penalty
@@ -658,97 +796,117 @@ PENTING - MULTIPLE FILE REVIEW:
             ;(nudgeOptions as ChatParams).response_format = { type: "json_object" } as const
           }
           
-          try {
-            const nudgeResp = await openai.chat.completions.create(nudgeOptions)
-            let nudgeContent = nudgeResp.choices[0]?.message?.content?.trim() || "{}"
-            const nudgeMatch = nudgeContent.match(/\{[\s\S]*\}/)
-            if (nudgeMatch) nudgeContent = nudgeMatch[0]
-            const nudgeParsed = JSON.parse(nudgeContent) as AIResponseData
-            if (Array.isArray(nudgeParsed.suggestions) && nudgeParsed.suggestions.length > 0) {
-              validatedResult.suggestions = nudgeParsed.suggestions.map((suggestion: AISuggestionResponse, index: number): ReviewSuggestion => ({
-                id: suggestion.id || `suggestion-${index}-${Date.now()}`,
-                type: (suggestion.type || "info") as ReviewSuggestion['type'],
-                severity: (suggestion.severity || "low") as ReviewSuggestion['severity'],
-                line: suggestion.line || Math.floor(Math.random() * 20) + 1,
-                title: suggestion.title || `Review Item ${index + 1}`,
-                description: suggestion.description || "Analysis of code quality and structure.",
-                suggestion: suggestion.suggestion || "Consider reviewing this section for improvements.",
-                fileName: (suggestion as {fileName?: string})?.fileName || "general",
-                codeSnippet: {
-                  original: suggestion.codeSnippet?.original || "",
-                  improved: suggestion.codeSnippet?.improved || "",
-                },
-                analogiKocak: suggestion.analogiKocak || undefined,
-                urgencyLevel: suggestion.urgencyLevel || undefined,
-                learningOpportunity: suggestion.learningOpportunity || undefined,
-                canAutoFix: suggestion.canAutoFix || false,
-              }))
+          if (!options?.preferFasterModel) {
+            try {
+              const nudgeResp = await openai.chat.completions.create(nudgeOptions)
+              let nudgeContent = nudgeResp.choices[0]?.message?.content?.trim() || "{}"
+              const nudgeMatch = nudgeContent.match(/\{[\s\S]*\}/)
+              if (nudgeMatch) nudgeContent = nudgeMatch[0]
+              const nudgeParsed = JSON.parse(nudgeContent) as AIResponseData
+              if (Array.isArray(nudgeParsed.suggestions) && nudgeParsed.suggestions.length > 0) {
+                validatedResult.suggestions = nudgeParsed.suggestions.map((suggestion: AISuggestionResponse, index: number): ReviewSuggestion => ({
+                  id: suggestion.id || `suggestion-${index}-${Date.now()}`,
+                  type: (suggestion.type || "info") as ReviewSuggestion['type'],
+                  severity: (suggestion.severity || "low") as ReviewSuggestion['severity'],
+                  line: suggestion.line || Math.floor(Math.random() * 20) + 1,
+                  title: suggestion.title || `Review Item ${index + 1}`,
+                  description: suggestion.description || "Analysis of code quality and structure.",
+                  suggestion: suggestion.suggestion || "Consider reviewing this section for improvements.",
+                fileName: (suggestion as {fileName?: string})?.fileName || "General",
+                  codeSnippet: {
+                    original: suggestion.codeSnippet?.original || "",
+                    improved: suggestion.codeSnippet?.improved || "",
+                  },
+                  analogiKocak: suggestion.analogiKocak || undefined,
+                  urgencyLevel: suggestion.urgencyLevel || undefined,
+                  learningOpportunity: suggestion.learningOpportunity || undefined,
+                  canAutoFix: suggestion.canAutoFix || false,
+                }))
+              }
+            } catch (error) {
+              console.error("Failed to get suggestions from API:", error);
             }
-          } catch (error) {
-            console.error("Failed to get suggestions from API:", error);
           }
           
-          // If we still don't have suggestions, create default ones based on metadata
+          // If we still don't have suggestions, ALWAYS synthesize actionable suggestions matching personality
           if (!validatedResult.suggestions || validatedResult.suggestions.length === 0) {
-            console.log("Creating fallback suggestions from metadata");
-            
-            // Extract any useful content from metadata
-            const assessmentText = validatedResult.metadata?.overallAssessment || 
+            console.log("Creating synthesized suggestions to avoid empty review");
+            // Extract file names from the provided code markers so we can attach per-file suggestions
+            const fileNames = Array.from((code.match(/FILE_MARKER:\s*([^\n]+)/g) || []).map(m => m.replace(/^.*?FILE_MARKER:\s*/, '').trim()));
+            const assessmentText = (validatedResult.metadata?.overallAssessment || 
                                    validatedResult.metadata?.overallRoast ||
                                    validatedResult.metadata?.brutalAssessment ||
                                    validatedResult.metadata?.positiveAssessment ||
-                                   "Code review completed.";
-            
-            // Create at least 2 default suggestions
-            validatedResult.suggestions = [
-              {
-                id: `default-1-${Date.now()}`,
-                type: "info" as const,
-                severity: "medium" as const,
-                line: 5,
-                title: "Code Structure Review",
-                description: "Analysis of overall code structure and organization.",
-                suggestion: assessmentText.slice(0, 200),
-                fileName: "general",
-                codeSnippet: { original: "", improved: "" },
-                canAutoFix: false
-              },
-              {
-                id: `default-2-${Date.now()}`,
-                type: "style" as const,
-                severity: "low" as const,
-                line: 10,
-                title: "Code Style Recommendation",
-                description: "Recommendations for consistent code style.",
-                suggestion: "Maintain consistent naming conventions and formatting throughout the codebase.",
-                fileName: "style",
-                codeSnippet: { original: "", improved: "" },
-                canAutoFix: false
-              }
-            ];
-            
-            // Add a third suggestion if we have recommendations
-            if (Array.isArray(validatedResult.metadata?.recommendations) && 
-                validatedResult.metadata.recommendations.length > 0) {
-              validatedResult.suggestions.push({
-                id: `default-3-${Date.now()}`,
-                type: "performance" as const,
-                severity: "low" as const,
-                line: 15,
-                title: "Performance Considerations",
-                description: "Suggestions for potential performance improvements.",
-                suggestion: validatedResult.metadata.recommendations[0] || 
-                           "Review algorithms and data structures for optimization opportunities.",
-                fileName: "performance",
-                codeSnippet: { original: "", improved: "" },
-                canAutoFix: false
-              });
+                                   "").slice(0, 300);
+            const rec0 = Array.isArray(validatedResult.metadata?.recommendations) && validatedResult.metadata!.recommendations!.length > 0
+              ? String(validatedResult.metadata!.recommendations![0])
+              : "Optimalkan struktur fungsi dan hilangkan duplikasi kode yang tidak perlu.";
+
+            const synthByType: Record<ReviewType, ReviewSuggestion[]> = {
+              codeQuality: [
+                { id: `synth-arch-${Date.now()}`, type: "architecture", severity: "medium", line: 1, title: "[General] Pemisahan Tanggung Jawab", description: "Strukturkan kode agar setiap fungsi/komponen memiliki satu tanggung jawab (SRP).", suggestion: assessmentText || "Pisahkan logika bisnis dari presentasi, pecah fungsi yang panjang menjadi bagian kecil yang mudah diuji.", fileName: "General", codeSnippet: { original: "", improved: "" }, canAutoFix: false },
+                { id: `synth-style-${Date.now()}`, type: "style", severity: "low", line: 1, title: "[Style] Konsistensi Penamaan & Format", description: "Pastikan penamaan variabel/fungsi konsisten dan format kode rapi.", suggestion: "Gunakan satu konvensi (mis. camelCase), aktifkan ESLint/Prettier.", fileName: "Style", codeSnippet: { original: "", improved: "" }, canAutoFix: false },
+                { id: `synth-perf-${Date.now()}`, type: "performance", severity: "low", line: 1, title: "[Performance] Optimasi Sederhana", description: "Cari peluang optimasi pada loop, query, atau operasi berulang.", suggestion: rec0, fileName: "Performance", codeSnippet: { original: "", improved: "" }, canAutoFix: false },
+              ],
+              security: [
+                { id: `synth-sec1-${Date.now()}`, type: "security", severity: "medium", line: 1, title: "[General] Validasi Input", description: "Semua input user perlu divalidasi untuk mencegah injeksi.", suggestion: "Tambahkan whitelist/regex/validator pada endpoint/handler.", fileName: "General", codeSnippet: { original: "", improved: "" }, canAutoFix: false },
+                { id: `synth-sec2-${Date.now()}`, type: "security", severity: "low", line: 1, title: "[General] Handling Rahasia", description: "Pastikan kredensial/secret tidak tertanam di kode.", suggestion: "Gunakan environment variable + secret manager.", fileName: "General", codeSnippet: { original: "", improved: "" }, canAutoFix: false },
+              ],
+              bestPractices: [
+                { id: `synth-bp1-${Date.now()}`, type: "style", severity: "low", line: 1, title: "[Style] Lint & Format", description: "Standarisasi linter/formatter untuk konsistensi.", suggestion: "Konfigurasi ESLint + Prettier & jalankan CI lint.", fileName: "Style", codeSnippet: { original: "", improved: "" }, canAutoFix: false },
+                { id: `synth-bp2-${Date.now()}`, type: "architecture", severity: "medium", line: 1, title: "[General] SRP & Modularitas", description: "Pecah modul besar agar lebih mudah dipelihara.", suggestion: "Refactor fungsi panjang, ekstrak util/helper.", fileName: "General", codeSnippet: { original: "", improved: "" }, canAutoFix: false },
+                { id: `synth-bp3-${Date.now()}`, type: "testing", severity: "low", line: 1, title: "[Testing] Cakupan Dasar", description: "Tambahkan test untuk jalur kritikal.", suggestion: "Minimal unit test untuk fungsi utama.", fileName: "General", codeSnippet: { original: "", improved: "" }, canAutoFix: false },
+              ],
+              sarcastic: [
+                { id: `synth-sar1-${Date.now()}`, type: "style", severity: "low", line: 1, title: "[Style] Konsistensi Penamaan", description: "Nama variabel lu kayak mood swing: beda-beda tiap baris.", suggestion: "Pilih camelCase. Biar ga bikin tim kaget tiap scroll.", fileName: "Style", codeSnippet: { original: "", improved: "" }, canAutoFix: false },
+                { id: `synth-sar2-${Date.now()}`, type: "architecture", severity: "medium", line: 1, title: "[General] Fungsi Jumbo", description: "Fungsi ini panjang banget, mau jadi sinetron berseri?", suggestion: "Potong jadi beberapa fungsi kecil biar ga pusing.", fileName: "General", codeSnippet: { original: "", improved: "" }, canAutoFix: false },
+                { id: `synth-sar3-${Date.now()}`, type: "performance", severity: "low", line: 1, title: "[Performance] Ulang-ulang?", description: "Loop-nya muter-muter kayak nyari wifi gratis.", suggestion: "Cache hasil/pecah logic biar ga boros.", fileName: "Performance", codeSnippet: { original: "", improved: "" }, canAutoFix: false },
+              ],
+              brutal: [
+                { id: `synth-br1-${Date.now()}`, type: "bug", severity: "medium", line: 1, title: "[General] Error Handling Lemah", description: "Penanganan error minim — ini bom waktu di produksi.", suggestion: "Tambahkan try/catch & logging bermakna di titik rawan.", fileName: "General", codeSnippet: { original: "", improved: "" }, canAutoFix: false },
+                { id: `synth-br2-${Date.now()}`, type: "architecture", severity: "medium", line: 1, title: "[General] Struktur Acak", description: "Struktur file acak bikin maintenance berat.", suggestion: "Kelompokkan modul berdasar domain & tanggung jawab.", fileName: "General", codeSnippet: { original: "", improved: "" }, canAutoFix: false },
+              ],
+              encouraging: [
+                { id: `synth-en1-${Date.now()}`, type: "improvement", severity: "opportunity", line: 1, title: "[General] Potensi Refactor Kecil", description: "Dasarnya sudah bagus! Ada ruang untuk rapikan fungsi.", suggestion: "Pecah fungsi panjang jadi unit kecil — mudah diuji dan dibaca.", fileName: "General", codeSnippet: { original: "", improved: "" }, canAutoFix: false },
+                { id: `synth-en2-${Date.now()}`, type: "style", severity: "opportunity", line: 1, title: "[Style] Konsistensi Format", description: "Sedikit polesan format bikin kode makin kinclong.", suggestion: "Aktifkan formatter otomatis sebelum commit.", fileName: "Style", codeSnippet: { original: "", improved: "" }, canAutoFix: false },
+              ],
+            } as const
+
+            // Start with personality-tailored base suggestions
+            const base = synthByType[reviewType] ?? synthByType.codeQuality
+
+            // If we detected file names, clone base suggestions and map them to files (one per file)
+            let perFile: ReviewSuggestion[] = []
+            if (fileNames.length > 0) {
+              perFile = fileNames.map((fname, idx) => {
+                const tmpl = base[Math.min(idx, base.length - 1)]
+                return {
+                  ...tmpl,
+                  id: `${tmpl.id}-${idx}`,
+                  title: tmpl.title.includes('[') ? tmpl.title.replace(/\[[^\]]+\]/, `[${fname}]`) : `[${fname}] ${tmpl.title.replace(/^\[[^\]]+\]\s*/, '')}`,
+                  fileName: fname,
+                }
+              })
             }
-            
-            // Update summary to reflect our new suggestions
+
+            validatedResult.suggestions = perFile.length > 0 ? perFile : base
+
+            // Populate personality-specific overall messages if missing (mutate existing metadata)
+            if (reviewType === 'sarcastic' && !validatedResult.metadata?.overallRoast) {
+              validatedResult.metadata!.overallRoast = "Kode lu masih bisa naik kelas — rapihin dikit biar ga bikin tim migrain.";
+            }
+            if (reviewType === 'brutal' && !validatedResult.metadata?.brutalAssessment) {
+              validatedResult.metadata!.brutalAssessment = "Fokus beresin fundamental: error handling, struktur, dan konsistensi. Baru setelah itu bicara performa.";
+            }
+            if (reviewType === 'encouraging' && !validatedResult.metadata?.positiveAssessment) {
+              validatedResult.metadata!.positiveAssessment = "Fondasi kode sudah solid! Dengan sedikit refactor, kualitasnya akan makin mantap.";
+            }
+
+            // Update summary based on synthesized suggestions
             validatedResult.summary.totalIssues = validatedResult.suggestions.length;
-            validatedResult.summary.info = validatedResult.suggestions.length - 1;
-            validatedResult.summary.warning = 1;
+            validatedResult.summary.critical = 0;
+            validatedResult.summary.warning = validatedResult.suggestions.filter(s => s.severity === 'medium').length;
+            validatedResult.summary.info = validatedResult.suggestions.filter(s => s.severity === 'low').length;
           }
         }
 
@@ -768,17 +926,17 @@ PENTING - MULTIPLE FILE REVIEW:
         const fallbackSuggestions = [];
 
         // Try to extract useful information from the raw response
-        if (content.includes("error") || content.includes("Error")) {
+        if (content.toLowerCase().includes("error")) {
           fallbackSuggestions.push({
             id: `error-${Date.now()}`,
             type: "info" as const,
             severity: "medium" as const,
             line: 1,
-            title: "AI Response Error",
+            title: "Kesalahan Respons AI",
             description:
-              "AI provided a response but not in the expected format.",
+              "AI memberikan respons namun tidak sesuai format yang diharapkan.",
             suggestion:
-              "Try uploading smaller code or use a different reviewer type.",
+              "Coba unggah berkas lebih kecil atau pilih tipe reviewer lain.",
             codeSnippet: { original: "", improved: "" },
             canAutoFix: false,
           });
@@ -792,12 +950,12 @@ PENTING - MULTIPLE FILE REVIEW:
             type: "info" as const,
             severity: "low" as const,
             line: 1,
-            title: "Review Available (Non-Standard Format)",
+            title: "Review Tersedia (Format Tidak Standar)",
             description:
-              "AI has provided feedback but the format is incorrect.",
+              "AI memberikan masukan namun formatnya tidak sesuai.",
             suggestion:
               truncatedContent ||
-              "Try uploading again or choose a different reviewer personality.",
+              "Coba unggah ulang atau pilih gaya reviewer yang berbeda.",
             codeSnippet: { original: "", improved: "" },
             canAutoFix: false,
           });
@@ -805,10 +963,10 @@ PENTING - MULTIPLE FILE REVIEW:
 
         // Fallback response with concise messages
         const sarcasticFallbacks = [
-          "AI seems confused right now 🤖",
-          "Response format error, please try again 🔄",
-          "Parsing issue, maybe the code is too complex 📝",
-          "AI needs a coffee break ☕",
+          "AI lagi bingung sekarang 🤖",
+          "Format respons bermasalah, coba lagi ya 🔄",
+          "Masalah parsing, mungkin kodenya cukup kompleks 📝",
+          "AI butuh rehat kopi dulu ☕",
         ];
 
         const randomMessage =
@@ -857,7 +1015,7 @@ PENTING - MULTIPLE FILE REVIEW:
           metadata: {
             reviewType,
             language,
-            model: OPENAI_CONFIG.model,
+            model: modelToUse,
             timestamp: new Date().toISOString(),
             tokensUsed: response.usage?.total_tokens || 0,
             fallback: true,

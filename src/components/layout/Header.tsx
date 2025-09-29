@@ -12,11 +12,10 @@ export const Header = () => {
           <Coffee className="w-10 h-10 fill-coral/70 dark:fill-cream/80" />
         </h1>
         <p className="text-coral dark:text-cream text-lg font-bold mb-2 ">
-          Code issue adalah caraku mengekspresikan bahwa kodingan lo sangat
-          ampasss.
+          Code issue is my way of expressing that your coding is really terrible.
         </p>
         <div className="text-coral dark:text-cream text-sm font-bold tracking-wide">
-          Kopi panas, review gw lebih panas.
+          Hot coffee, my review is even hotter.
         </div>
       </div>
 
