@@ -64,7 +64,7 @@ export default function CodeReviewer() {
         <div className="bg-charcoal dark:bg-coal-400 p-6 rounded-lg border-3 border-charcoal dark:border-cream">
           <h3 className="text-sky dark:text-cream font-bold text-lg mb-4 flex items-center gap-2">
             <span>🎭</span>
-            Pilih Kepribadian Reviewer Kamu
+            Choose Your Reviewer Personality
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {reviewTypes.map((type) => (
@@ -87,8 +87,8 @@ export default function CodeReviewer() {
             ))}
           </div>
           <div className="mt-4 text-sky dark:text-cream text-sm text-center">
-            💡 <strong>Tip:</strong> Mulai dengan "Roasting Sarkastik" untuk nilai 
-            entertainment maksimal! 😈
+            💡 <strong>Tip:</strong> Start with "Sarcastic Roasting" for maximum 
+            entertainment value! 😈
           </div>
         </div>
 

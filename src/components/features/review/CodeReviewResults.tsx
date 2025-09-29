@@ -24,6 +24,7 @@ const COMPRESSION_THRESHOLD = 30 * 1024; // 30KB threshold for compression
 const REVIEW_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 const MAX_CACHE_ENTRIES = 50; // Limit cache size to prevent localStorage bloat
 const REVIEW_CACHE_STORAGE_KEY = "codeRoaster_review_cache";
+const REVIEW_CACHE_VERSION = "v2"; // bump to invalidate old cache when logic changes
 
 // Compute SHA-256 hash for caching
 const computeSHA256 = async (input: string): Promise<string> => {
@@ -566,11 +567,11 @@ const CodeReviewResultsComponent = forwardRef<
             .map((f) => `${f.name}:${f.size}`)
             .join("|");
           const cacheKey = await computeSHA256(
-            `${language}|${reviewType}|${fileSignature}|${uploadedFiles.length}`
+            `${REVIEW_CACHE_VERSION}|${language}|${reviewType}|${fileSignature}|${uploadedFiles.length}`
           );
 
-          // Short debounce before API call
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          // Short debounce before API call (reduced for responsiveness)
+          await new Promise((resolve) => setTimeout(resolve, 150));
 
           // Check cache first - this is fast
           console.time("cache-check");
@@ -604,7 +605,9 @@ const CodeReviewResultsComponent = forwardRef<
               totalFileSize: totalSize,
               fileCount: fileCount,
               // Jika lebih dari 1 file, tambahkan flag khusus
-              isMultiFile: fileCount > 1
+              isMultiFile: fileCount > 1,
+              // Utamakan akurasi (personality + per-file) daripada kecepatan
+              preferFasterModel: false
             }
           );
           setLocalReviewResults(result);
