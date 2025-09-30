@@ -4,16 +4,8 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { NetworkStatus, ThemeToggleFloating } from "@/components/common";
 import { ThemeProvider } from "@/providers";
 
-// Lazy load components with prefetch and preload hints for better performance
-const CodeReviewer = lazy(() => {
-  // Add preload hint for the main page
-  const link = document.createElement('link');
-  link.rel = 'prefetch';
-  link.as = 'script';
-  link.href = '/src/pages/index.tsx';
-  document.head.appendChild(link);
-  return import("@/pages");
-});
+// Lazy load components (avoid prefetching source paths in production)
+const CodeReviewer = lazy(() => import("@/pages"));
 
 const History = lazy(() => import("@/pages/history"));
 const NotFound = lazy(() => import("@/pages/not-found"));
